@@ -10,11 +10,9 @@ class GT7Dashboard {
         this.racingEngineer = null;
         this.mediaRecorder = null;
         this.audioStream = null;
-        this.audioContext = null;
+        this.audioContext = null; // for microphone input (16kHz)
+        this.playbackContext = null; // for engineer audio output (24kHz)
         this.isRecording = false;
-        this.audioChunks = [];
-        this.audioBuffer = [];
-        this.minAudioDurationMs = 500; // Minimum 500ms of audio before sending
         
         this.initializeSocket();
         this.initializeGauges();
@@ -397,9 +395,15 @@ class GT7Dashboard {
                 }
             });
             
-            // Create audio context for processing
+            // Create audio contexts
+            // Input context at 16 kHz for the realtime API
             this.audioContext = new (window.AudioContext || window.webkitAudioContext)({
                 sampleRate: 16000
+            });
+
+            // Separate context for playback of engineer responses (24 kHz)
+            this.playbackContext = new (window.AudioContext || window.webkitAudioContext)({
+                sampleRate: 24000
             });
             
             console.log('🎤 Microphone access granted');
@@ -438,7 +442,7 @@ class GT7Dashboard {
             console.log('🏁 Racing Engineer not connected');
             return;
         }
-        
+
         if (this.isRecording) {
             this.stopTalking();
         } else {
@@ -447,51 +451,52 @@ class GT7Dashboard {
     }
     
     async startTalking() {
-        if (!this.racingEngineer.connected || this.isRecording) {
+        if (this.isRecording) {
             return;
         }
-        
+
+        if (!this.racingEngineer.connected) {
+            await this.connectEngineer();
+        }
+
         try {
-            console.log('🎤 Starting to record...');
+            console.log('🎤 Starting to stream audio...');
             this.isRecording = true;
-            
-            // Update UI
+
             const talkButton = document.getElementById('talkButton');
             const talkButtonText = talkButton.querySelector('.talk-button-text');
             const micIcon = talkButton.querySelector('.mic-icon');
-            
+
             talkButton.classList.add('active');
             talkButtonText.textContent = 'STOP';
-            
-            // Change icon to stop icon
+
             micIcon.innerHTML = `
                 <rect x="6" y="6" width="12" height="12" fill="currentColor"/>
             `;
-            
-            // Clear previous audio data
-            this.audioChunks = [];
-            this.audioBuffer = [];
-            this.recordingStartTime = Date.now();
-            
-            // Create MediaRecorder with better settings
+
+            // Create MediaRecorder and stream audio chunks directly
             this.mediaRecorder = new MediaRecorder(this.audioStream, {
                 mimeType: 'audio/webm;codecs=opus',
                 audioBitsPerSecond: 128000
             });
-            
-            this.mediaRecorder.ondataavailable = (event) => {
-                if (event.data.size > 0) {
-                    this.audioChunks.push(event.data);
+
+            this.mediaRecorder.ondataavailable = async (event) => {
+                if (!this.isRecording || event.data.size === 0) return;
+
+                try {
+                    const arrayBuffer = await event.data.arrayBuffer();
+                    const buffer = await this.audioContext.decodeAudioData(arrayBuffer);
+                    const pcm16 = this.convertToPCM16(buffer);
+                    const base64Audio = btoa(String.fromCharCode.apply(null, pcm16));
+                    this.socket.emit('engineer:audio', base64Audio);
+                } catch (err) {
+                    console.error('🎤 Failed to process chunk:', err);
                 }
             };
-            
-            this.mediaRecorder.onstop = () => {
-                this.processAudioForEngineer();
-            };
-            
-            // Start recording with larger chunks
-            this.mediaRecorder.start(250); // Collect data every 250ms
-            
+
+            // Start recording with short chunks for real-time streaming
+            this.mediaRecorder.start(200);
+
         } catch (error) {
             console.error('🎤 Failed to start recording:', error);
             this.isRecording = false;
@@ -506,14 +511,30 @@ class GT7Dashboard {
         
         console.log('🎤 Stopping recording...');
         this.isRecording = false;
-        
-        // Reset UI
+
         this.resetTalkButton();
-        
-        // Stop recording
-        if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
+
+        if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
             this.mediaRecorder.stop();
         }
+
+        if (this.audioStream) {
+            this.audioStream.getTracks().forEach(t => t.stop());
+            this.audioStream = null;
+        }
+
+        if (this.audioContext) {
+            this.audioContext.close();
+            this.audioContext = null;
+        }
+
+        if (this.playbackContext) {
+            this.playbackContext.close();
+            this.playbackContext = null;
+        }
+
+        // Disconnect racing engineer session
+        this.socket.emit('engineer:disconnect');
     }
     
     resetTalkButton() {
@@ -533,81 +554,6 @@ class GT7Dashboard {
         `;
     }
     
-    async processAudioForEngineer() {
-        if (this.audioChunks.length === 0) {
-            console.log('🎤 No audio chunks to process');
-            return;
-        }
-        
-        // Check if we have enough audio duration
-        const recordingDuration = Date.now() - this.recordingStartTime;
-        if (recordingDuration < this.minAudioDurationMs) {
-            console.log(`🎤 Recording too short: ${recordingDuration}ms, minimum: ${this.minAudioDurationMs}ms`);
-            return;
-        }
-        
-        try {
-            console.log(`🎤 Processing ${this.audioChunks.length} audio chunks, duration: ${recordingDuration}ms`);
-            
-            // Create blob from audio chunks
-            const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm;codecs=opus' });
-            console.log(`🎤 Audio blob size: ${audioBlob.size} bytes`);
-            
-            if (audioBlob.size === 0) {
-                console.log('🎤 Empty audio blob, skipping');
-                return;
-            }
-            
-            // Convert to PCM16 format required by OpenAI
-            const arrayBuffer = await audioBlob.arrayBuffer();
-            const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
-            
-            console.log(`🎤 Audio buffer duration: ${audioBuffer.duration.toFixed(2)}s, sample rate: ${audioBuffer.sampleRate}Hz`);
-            
-            // Only proceed if we have sufficient audio
-            if (audioBuffer.duration < 0.5) {
-                console.log('🎤 Audio duration too short after decoding');
-                return;
-            }
-            
-            // Convert to PCM16
-            const pcm16Data = this.convertToPCM16(audioBuffer);
-            console.log(`🎤 PCM16 data size: ${pcm16Data.length} bytes`);
-            
-            // Send audio data in chunks to avoid overwhelming the buffer
-            await this.sendAudioInChunks(pcm16Data);
-            
-            // Commit the audio buffer
-            this.socket.emit('engineer:commitAudio');
-            
-            console.log('🎤 Audio sent to Racing Engineer');
-            
-        } catch (error) {
-            console.error('🎤 Failed to process audio:', error);
-        }
-    }
-    
-    async sendAudioInChunks(pcm16Data) {
-        const chunkSize = 8192; // 8KB chunks
-        const totalChunks = Math.ceil(pcm16Data.length / chunkSize);
-        
-        console.log(`🎤 Sending audio in ${totalChunks} chunks`);
-        
-        for (let i = 0; i < totalChunks; i++) {
-            const start = i * chunkSize;
-            const end = Math.min(start + chunkSize, pcm16Data.length);
-            const chunk = pcm16Data.slice(start, end);
-            
-            // Convert to base64 and send to server
-            const base64Audio = btoa(String.fromCharCode.apply(null, chunk));
-            this.socket.emit('engineer:audio', base64Audio);
-            
-            // Small delay between chunks to avoid overwhelming the server
-            if (i < totalChunks - 1) {
-                await new Promise(resolve => setTimeout(resolve, 10));
-            }
-        }
-    }
     
     convertToPCM16(audioBuffer) {
         // Resample to 16kHz for OpenAI realtime
@@ -675,8 +621,8 @@ class GT7Dashboard {
     
     async playEngineerAudio(audioData) {
         try {
-            if (!this.audioContext) {
-                console.error('🔊 Audio context not available');
+            if (!this.playbackContext) {
+                console.error('🔊 Playback context not available');
                 return;
             }
             
@@ -698,14 +644,14 @@ class GT7Dashboard {
             const audioBuffer = await this.pcm16ToAudioBuffer(audioBytes);
             
             // Create gain node for volume control
-            const gainNode = this.audioContext.createGain();
+            const gainNode = this.playbackContext.createGain();
             gainNode.gain.value = 0.8; // Reduce volume slightly
-            
+
             // Play the audio
-            const source = this.audioContext.createBufferSource();
+            const source = this.playbackContext.createBufferSource();
             source.buffer = audioBuffer;
             source.connect(gainNode);
-            gainNode.connect(this.audioContext.destination);
+            gainNode.connect(this.playbackContext.destination);
             
             source.onended = () => {
                 console.log('🔊 Engineer audio playback completed');
@@ -726,7 +672,7 @@ class GT7Dashboard {
             throw new Error('No audio samples to process');
         }
         
-        const audioBuffer = this.audioContext.createBuffer(1, samples, 16000);
+        const audioBuffer = this.playbackContext.createBuffer(1, samples, 24000);
         const channelData = audioBuffer.getChannelData(0);
         
         for (let i = 0; i < samples; i++) {
