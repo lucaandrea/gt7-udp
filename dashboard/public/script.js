@@ -441,6 +441,11 @@ class GT7Dashboard {
     }
     
     toggleTalking() {
+        if (!this.racingEngineer.connected) {
+            console.log('🏁 Racing Engineer not connected');
+            return;
+        }
+
         if (this.isRecording) {
             this.stopTalking();
         } else {
