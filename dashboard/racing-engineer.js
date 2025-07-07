@@ -14,7 +14,10 @@ class RacingEngineer extends EventEmitter {
         this.sessionId = null;
         this.lastTelemetry = null;
         this.conversationHistory = [];
-        
+
+        // Base instructions without telemetry. Updated each time we send new telemetry context
+        this.baseInstructions = this.getEngineerInstructions();
+
         // Buffer for audio data
         this.audioBuffer = [];
         this.totalAudioReceived = 0;
@@ -150,9 +153,24 @@ Use this data to provide informed advice and respond to driver questions about t
     
     updateTelemetry(telemetryData) {
         this.lastTelemetry = telemetryData;
-        
+
         // Check for concerning telemetry values and provide proactive advice
         this.checkTelemetryAlerts(telemetryData);
+    }
+
+    sendTelemetryContext() {
+        if (!this.connected) return;
+
+        const instructions = `${this.baseInstructions}\n\n${this.formatTelemetrySummary()}`;
+
+        const sessionUpdate = {
+            type: 'session.update',
+            session: {
+                instructions
+            }
+        };
+
+        this.sendMessage(sessionUpdate);
     }
     
     checkTelemetryAlerts(data) {
@@ -228,7 +246,9 @@ Use this data to provide informed advice and respond to driver questions about t
             console.log('🏁 Cannot commit audio: not connected');
             return;
         }
-        
+
+        this.sendTelemetryContext();
+
         console.log(`🏁 Committing audio buffer (total audio: ${this.totalAudioReceived} bytes)`);
         
         const commitMessage = {
@@ -243,7 +263,9 @@ Use this data to provide informed advice and respond to driver questions about t
     
     sendTextMessage(text) {
         if (!this.connected) return;
-        
+
+        this.sendTelemetryContext();
+
         const textMessage = {
             type: 'conversation.item.create',
             item: {
@@ -270,9 +292,17 @@ Use this data to provide informed advice and respond to driver questions about t
     
     addTelemetryContext(userText) {
         if (!this.lastTelemetry) return userText;
-        
-        const telemetryContext = `
-Current telemetry:
+
+        const telemetryContext = `${this.formatTelemetrySummary()}
+Driver question: ${userText}`;
+
+        return telemetryContext;
+    }
+
+    formatTelemetrySummary() {
+        if (!this.lastTelemetry) return '';
+
+        return `Current telemetry:
 - Speed: ${this.lastTelemetry.speedMph?.toFixed(1) || 0} MPH
 - RPM: ${this.lastTelemetry.engineRPM?.toFixed(0) || 0}
 - Gear: ${this.lastTelemetry.currentGear || 'N'}
@@ -280,11 +310,7 @@ Current telemetry:
 - Tire temps: FL:${this.lastTelemetry.tyreTemp?.[0]?.toFixed(0) || 0}°C, FR:${this.lastTelemetry.tyreTemp?.[1]?.toFixed(0) || 0}°C, RL:${this.lastTelemetry.tyreTemp?.[2]?.toFixed(0) || 0}°C, RR:${this.lastTelemetry.tyreTemp?.[3]?.toFixed(0) || 0}°C
 - Engine temps: Oil ${this.lastTelemetry.oilTemp?.toFixed(0) || 0}°C, Water ${this.lastTelemetry.waterTemp?.toFixed(0) || 0}°C
 - Best lap: ${this.formatLapTime(this.lastTelemetry.bestLaptime)}
-- Last lap: ${this.formatLapTime(this.lastTelemetry.lastLaptime)}
-
-Driver question: ${userText}`;
-        
-        return telemetryContext;
+- Last lap: ${this.formatLapTime(this.lastTelemetry.lastLaptime)}`;
     }
     
     formatLapTime(milliseconds) {
