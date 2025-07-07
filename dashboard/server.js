@@ -3,16 +3,40 @@ const http = require('http');
 const socketIO = require('socket.io');
 const dgram = require('dgram');
 const path = require('path');
+const multer = require('multer');
+const fs = require('fs');
+const { exec } = require('child_process');
+const { promisify } = require('util');
 const Salsa20 = require('./salsa20.js');
-const RacingEngineer = require('./racing-engineer.js');
+const SimpleRacingEngineer = require('./racing-engineer-simple.js');
 require('dotenv').config();
 
 const app = express();
 const server = http.createServer(app);
 const io = socketIO(server);
+const execAsync = promisify(exec);
 
 // Serve static files
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.json());
+
+// Configure multer for audio file uploads
+const upload = multer({
+    dest: path.join(__dirname, 'temp'),
+    limits: {
+        fileSize: 25 * 1024 * 1024 // 25MB limit (OpenAI's limit)
+    },
+    fileFilter: (req, file, cb) => {
+        // Accept any audio file
+        cb(null, true);
+    }
+});
+
+// Ensure temp directory exists
+const tempDir = path.join(__dirname, 'temp');
+if (!fs.existsSync(tempDir)) {
+    fs.mkdirSync(tempDir, { recursive: true });
+}
 
 // Configuration - Change these as needed
 const PS5_IP = '10.0.1.74';  // PS5 IP address
@@ -48,6 +72,47 @@ const PACKET_C_SIZE = 344;
 // GT7 Salsa20 decryption key
 const GT7_KEY = "Simulator Interface Packet GT7 ver 0.0";
 const keyBytes = Buffer.from(GT7_KEY, 'ascii').subarray(0, 32);
+
+// Check if ffmpeg is available
+async function checkFFmpeg() {
+    try {
+        await execAsync('ffmpeg -version');
+        console.log('✅ FFmpeg is available for audio conversion');
+        return true;
+    } catch (error) {
+        console.warn('⚠️ FFmpeg not found. Audio conversion may fail.');
+        console.warn('   Install FFmpeg for better audio format support.');
+        return false;
+    }
+}
+
+// Convert audio file to a format OpenAI supports
+async function convertAudioFile(inputPath, outputPath) {
+    try {
+        // Try to convert to MP3 which OpenAI definitely supports
+        const command = `ffmpeg -i "${inputPath}" -ar 16000 -ac 1 -codec:a mp3 -b:a 64k "${outputPath}" -y`;
+        console.log('🔄 Converting audio with command:', command);
+        
+        const { stdout, stderr } = await execAsync(command);
+        console.log('✅ Audio conversion completed');
+        
+        if (stderr) {
+            console.log('FFmpeg output:', stderr);
+        }
+        
+        return true;
+    } catch (error) {
+        console.error('❌ FFmpeg conversion failed:', error.message);
+        return false;
+    }
+}
+
+// Check if a file is a valid audio format for OpenAI
+function isValidAudioFormat(filename) {
+    const validExtensions = ['.mp3', '.mp4', '.m4a', '.wav', '.mpeg', '.mpga', '.webm', '.ogg', '.oga', '.flac'];
+    const ext = path.extname(filename).toLowerCase();
+    return validExtensions.includes(ext);
+}
 
 function sendHeartbeat() {
     const heartbeatMsg = Buffer.from('A'); // Send 'A' for packet type A
@@ -331,6 +396,86 @@ udpServer.on('listening', () => {
     heartbeatInterval = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL);
 });
 
+// Add API endpoint for audio upload
+app.post('/api/engineer/audio', upload.single('audio'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'No audio file uploaded' });
+        }
+        
+        console.log(`🎤 Received audio file:`);
+        console.log(`   - Original name: ${req.file.originalname}`);
+        console.log(`   - Stored as: ${req.file.filename}`);
+        console.log(`   - Size: ${req.file.size} bytes`);
+        console.log(`   - MIME type: ${req.file.mimetype}`);
+        console.log(`   - Path: ${req.file.path}`);
+        
+        // Check if file actually exists and has content
+        if (req.file.size === 0) {
+            fs.unlinkSync(req.file.path);
+            return res.status(400).json({ error: 'Empty audio file uploaded' });
+        }
+        
+        if (!racingEngineer) {
+            // Clean up file if no engineer
+            fs.unlinkSync(req.file.path);
+            return res.status(503).json({ error: 'Racing engineer not available' });
+        }
+        
+        // Determine the correct file extension based on the original filename or MIME type
+        let finalPath = req.file.path;
+        const originalExt = path.extname(req.file.originalname).toLowerCase();
+        
+        // Check if we need to convert the audio
+        const hasFFmpeg = await checkFFmpeg();
+        const needsConversion = originalExt === '.webm' || req.file.mimetype === 'audio/webm';
+        
+        if (needsConversion && hasFFmpeg) {
+            // Convert WebM to MP3 for better OpenAI compatibility
+            const mp3Path = req.file.path + '.mp3';
+            console.log('🔄 Converting WebM to MP3 for OpenAI compatibility...');
+            
+            const converted = await convertAudioFile(req.file.path, mp3Path);
+            
+            if (converted && fs.existsSync(mp3Path)) {
+                // Delete the original WebM file
+                fs.unlinkSync(req.file.path);
+                finalPath = mp3Path;
+                console.log('✅ Successfully converted to MP3');
+            } else {
+                // If conversion failed, try renaming with the correct extension
+                console.log('⚠️ Conversion failed, trying with original file...');
+                const renamedPath = req.file.path + originalExt;
+                fs.renameSync(req.file.path, renamedPath);
+                finalPath = renamedPath;
+            }
+        } else {
+            // Just rename the file with the correct extension
+            const renamedPath = req.file.path + originalExt;
+            fs.renameSync(req.file.path, renamedPath);
+            finalPath = renamedPath;
+        }
+        
+        console.log(`🎤 Processing audio file: ${finalPath}`);
+        
+        // Process the audio file asynchronously
+        racingEngineer.processAudioFile(finalPath);
+        res.json({ success: true, message: 'Audio processing started' });
+        
+    } catch (error) {
+        console.error('❌ Audio upload error:', error);
+        // Clean up file on error
+        if (req.file && req.file.path) {
+            try {
+                fs.unlinkSync(req.file.path);
+            } catch (unlinkError) {
+                // Ignore cleanup errors
+            }
+        }
+        res.status(500).json({ error: 'Failed to process audio' });
+    }
+});
+
 // Start UDP server
 console.log(`🚀 Binding UDP server to port ${LOCAL_UDP_PORT}...`);
 udpServer.bind(LOCAL_UDP_PORT);
@@ -353,48 +498,32 @@ io.on('connection', (socket) => {
     socket.on('engineer:connect', async () => {
         try {
             if (!racingEngineer) {
-                racingEngineer = new RacingEngineer({
+                racingEngineer = new SimpleRacingEngineer({
                     apiKey: process.env.OPENAI_API_KEY
                 });
                 
                 // Set up engineer event listeners
-                racingEngineer.on('connected', () => {
-                    io.emit('engineer:connected');
-                    console.log('🏁 Racing Engineer connected to all clients');
+                racingEngineer.on('audioResponse', (response) => {
+                    console.log('🏁 Sending audio response to clients');
+                    io.emit('engineer:audioResponse', response);
                 });
                 
-                racingEngineer.on('disconnected', () => {
-                    io.emit('engineer:disconnected');
-                    console.log('🏁 Racing Engineer disconnected from all clients');
+                racingEngineer.on('processing', (isProcessing) => {
+                    io.emit('engineer:processing', isProcessing);
                 });
                 
                 racingEngineer.on('error', (error) => {
-                    io.emit('engineer:error', error.message);
+                    io.emit('engineer:error', error);
                     console.error('🏁 Racing Engineer error:', error);
                 });
                 
-                racingEngineer.on('audioData', (audioData) => {
-                    io.emit('engineer:audio', audioData);
-                });
-                
-                racingEngineer.on('audioComplete', () => {
-                    io.emit('engineer:audioComplete');
-                });
-                
-                racingEngineer.on('transcription', (transcript) => {
-                    io.emit('engineer:transcription', transcript);
-                });
-                
-                racingEngineer.on('speechStarted', () => {
-                    io.emit('engineer:speechStarted');
-                });
-                
-                racingEngineer.on('speechStopped', () => {
-                    io.emit('engineer:speechStopped');
-                });
+                console.log('🏁 Simple Racing Engineer initialized');
             }
             
-            await racingEngineer.connect();
+            // Immediately signal connected
+            io.emit('engineer:connected');
+            socket.emit('engineer:connected');
+            
         } catch (error) {
             console.error('❌ Failed to initialize Racing Engineer:', error);
             socket.emit('engineer:error', 'Failed to connect to Racing Engineer');
@@ -403,28 +532,15 @@ io.on('connection', (socket) => {
     
     socket.on('engineer:disconnect', () => {
         if (racingEngineer) {
-            racingEngineer.disconnect();
+            racingEngineer.removeAllListeners();
             racingEngineer = null;
-        }
-    });
-    
-    socket.on('engineer:audio', (audioData) => {
-        if (racingEngineer && racingEngineer.connected) {
-            // audioData should be a base64 encoded PCM16 audio buffer
-            const audioBuffer = Buffer.from(audioData, 'base64');
-            racingEngineer.sendAudioData(audioBuffer);
-        }
-    });
-    
-    socket.on('engineer:commitAudio', () => {
-        if (racingEngineer && racingEngineer.connected) {
-            racingEngineer.commitAudio();
+            io.emit('engineer:disconnected');
         }
     });
     
     socket.on('engineer:text', (text) => {
-        if (racingEngineer && racingEngineer.connected) {
-            racingEngineer.sendTextMessage(text);
+        if (racingEngineer) {
+            racingEngineer.processDriverMessage(text);
         }
     });
     
@@ -461,6 +577,9 @@ process.on('SIGINT', () => {
     server.close();
     process.exit(0);
 });
+
+// Check for FFmpeg on startup
+checkFFmpeg();
 
 // Start HTTP server
 const PORT = process.env.PORT || 3000;

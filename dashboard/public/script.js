@@ -13,8 +13,9 @@ class GT7Dashboard {
         this.audioContext = null;
         this.isRecording = false;
         this.audioChunks = [];
-        this.audioBuffer = [];
-        this.minAudioDurationMs = 500; // Minimum 500ms of audio before sending
+        this.silenceTimer = null;
+        this.silenceThreshold = 3000; // 3 seconds of silence before auto-stop
+        this.minRecordingTime = 500; // Minimum 500ms recording
         
         this.initializeSocket();
         this.initializeGauges();
@@ -89,15 +90,14 @@ class GT7Dashboard {
         this.racingEngineer = {
             connected: false,
             connecting: false,
-            audioQueue: [],
-            currentlyPlaying: false
+            processing: false
         };
         
         // Set up racing engineer socket events
         this.socket.on('engineer:connected', () => {
             this.racingEngineer.connected = true;
             this.racingEngineer.connecting = false;
-            this.updateEngineerStatus('connected', 'Connected');
+            this.updateEngineerStatus('connected', 'Ready');
             console.log('🏁 Racing Engineer connected');
         });
         
@@ -108,31 +108,25 @@ class GT7Dashboard {
             console.log('🏁 Racing Engineer disconnected');
         });
         
+        this.socket.on('engineer:processing', (isProcessing) => {
+            this.racingEngineer.processing = isProcessing;
+            if (isProcessing) {
+                this.updateEngineerStatus('processing', 'Processing...');
+            } else {
+                this.updateEngineerStatus('connected', 'Ready');
+            }
+        });
+        
         this.socket.on('engineer:error', (error) => {
             this.racingEngineer.connecting = false;
+            this.racingEngineer.processing = false;
             this.updateEngineerStatus('error', `Error: ${error}`);
             console.error('🏁 Racing Engineer error:', error);
         });
         
-        this.socket.on('engineer:audio', (audioData) => {
-            this.playEngineerAudio(audioData);
-        });
-        
-        this.socket.on('engineer:audioComplete', () => {
-            console.log('🏁 Engineer audio response completed');
-        });
-        
-        this.socket.on('engineer:transcription', (transcript) => {
-            console.log('🏁 Driver transcription:', transcript);
-            // You could display this in the UI if desired
-        });
-        
-        this.socket.on('engineer:speechStarted', () => {
-            console.log('🏁 Driver speech detected');
-        });
-        
-        this.socket.on('engineer:speechStopped', () => {
-            console.log('🏁 Driver speech ended');
+        this.socket.on('engineer:audioResponse', (response) => {
+            console.log('🏁 Received engineer response:', response.text);
+            this.playEngineerAudio(response.audio);
         });
     }
     
@@ -390,16 +384,11 @@ class GT7Dashboard {
         try {
             this.audioStream = await navigator.mediaDevices.getUserMedia({
                 audio: {
-                    sampleRate: 24000,
                     channelCount: 1,
                     echoCancellation: true,
-                    noiseSuppression: true
+                    noiseSuppression: true,
+                    autoGainControl: true
                 }
-            });
-            
-            // Create audio context for processing
-            this.audioContext = new (window.AudioContext || window.webkitAudioContext)({
-                sampleRate: 24000
             });
             
             console.log('🎤 Microphone access granted');
@@ -416,14 +405,17 @@ class GT7Dashboard {
         const textElement = statusElement.querySelector('.status-text');
         
         // Remove all state classes
-        statusElement.classList.remove('connecting', 'error');
+        statusElement.classList.remove('connecting', 'error', 'processing');
         
         switch (state) {
             case 'connected':
-                // Default connected state
+                // Default connected state (green)
                 break;
             case 'connecting':
                 statusElement.classList.add('connecting');
+                break;
+            case 'processing':
+                statusElement.classList.add('processing');
                 break;
             case 'error':
                 statusElement.classList.add('error');
@@ -454,6 +446,7 @@ class GT7Dashboard {
         try {
             console.log('🎤 Starting to record...');
             this.isRecording = true;
+            this.recordingStartTime = Date.now();
             
             // Update UI
             const talkButton = document.getElementById('talkButton');
@@ -461,42 +454,71 @@ class GT7Dashboard {
             const micIcon = talkButton.querySelector('.mic-icon');
             
             talkButton.classList.add('active');
-            talkButtonText.textContent = 'STOP';
+            talkButtonText.textContent = 'LISTENING';
             
-            // Change icon to stop icon
+            // Change icon to listening icon (pulsing circle)
             micIcon.innerHTML = `
-                <rect x="6" y="6" width="12" height="12" fill="currentColor"/>
+                <circle cx="12" cy="12" r="6" fill="currentColor" opacity="0.8"/>
+                <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2" opacity="0.3"/>
             `;
             
             // Clear previous audio data
             this.audioChunks = [];
-            this.audioBuffer = [];
-            this.recordingStartTime = Date.now();
             
-            // Create MediaRecorder with better settings
-            this.mediaRecorder = new MediaRecorder(this.audioStream, {
-                mimeType: 'audio/webm;codecs=opus',
-                audioBitsPerSecond: 128000
-            });
+            // Create MediaRecorder with the best available format
+            const options = this.getRecorderOptions();
+            console.log('🎤 Using recorder options:', options);
+            
+            this.mediaRecorder = new MediaRecorder(this.audioStream, options);
             
             this.mediaRecorder.ondataavailable = (event) => {
                 if (event.data.size > 0) {
                     this.audioChunks.push(event.data);
+                    this.resetSilenceTimer(); // Reset silence timer when we get audio data
                 }
             };
             
             this.mediaRecorder.onstop = () => {
-                this.processAudioForEngineer();
+                this.processRecordedAudio();
             };
             
-            // Start recording with larger chunks
+            // Start recording
             this.mediaRecorder.start(250); // Collect data every 250ms
+            
+            // Start silence detection
+            this.startSilenceDetection();
             
         } catch (error) {
             console.error('🎤 Failed to start recording:', error);
             this.isRecording = false;
             this.resetTalkButton();
         }
+    }
+    
+    getRecorderOptions() {
+        // Try formats in order of OpenAI preference
+        const mimeTypes = [
+            { mimeType: 'audio/mp4', extension: '.m4a' },
+            { mimeType: 'audio/mpeg', extension: '.mp3' },
+            { mimeType: 'audio/webm;codecs=opus', extension: '.webm' },
+            { mimeType: 'audio/webm', extension: '.webm' }
+        ];
+        
+        console.log('🎤 Checking supported MIME types...');
+        for (const format of mimeTypes) {
+            if (MediaRecorder.isTypeSupported(format.mimeType)) {
+                console.log(`🎤 Using MIME type: ${format.mimeType}`);
+                // Store the extension for later use
+                this.recordingFormat = format;
+                return { mimeType: format.mimeType };
+            } else {
+                console.log(`🎤 Not supported: ${format.mimeType}`);
+            }
+        }
+        
+        console.log('🎤 Using default MediaRecorder options');
+        this.recordingFormat = { mimeType: 'audio/webm', extension: '.webm' };
+        return {};
     }
     
     stopTalking() {
@@ -507,12 +529,35 @@ class GT7Dashboard {
         console.log('🎤 Stopping recording...');
         this.isRecording = false;
         
+        // Clear silence timer
+        if (this.silenceTimer) {
+            clearTimeout(this.silenceTimer);
+            this.silenceTimer = null;
+        }
+        
         // Reset UI
         this.resetTalkButton();
         
         // Stop recording
         if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
             this.mediaRecorder.stop();
+        }
+    }
+    
+    startSilenceDetection() {
+        // Auto-stop after silence threshold
+        this.silenceTimer = setTimeout(() => {
+            if (this.isRecording) {
+                console.log('🎤 Auto-stopping due to silence');
+                this.stopTalking();
+            }
+        }, this.silenceThreshold);
+    }
+    
+    resetSilenceTimer() {
+        if (this.silenceTimer) {
+            clearTimeout(this.silenceTimer);
+            this.startSilenceDetection();
         }
     }
     
@@ -533,7 +578,7 @@ class GT7Dashboard {
         `;
     }
     
-    async processAudioForEngineer() {
+    async processRecordedAudio() {
         if (this.audioChunks.length === 0) {
             console.log('🎤 No audio chunks to process');
             return;
@@ -541,8 +586,8 @@ class GT7Dashboard {
         
         // Check if we have enough audio duration
         const recordingDuration = Date.now() - this.recordingStartTime;
-        if (recordingDuration < this.minAudioDurationMs) {
-            console.log(`🎤 Recording too short: ${recordingDuration}ms, minimum: ${this.minAudioDurationMs}ms`);
+        if (recordingDuration < this.minRecordingTime) {
+            console.log(`🎤 Recording too short: ${recordingDuration}ms, minimum: ${this.minRecordingTime}ms`);
             return;
         }
         
@@ -550,199 +595,124 @@ class GT7Dashboard {
             console.log(`🎤 Processing ${this.audioChunks.length} audio chunks, duration: ${recordingDuration}ms`);
             
             // Create blob from audio chunks
-            const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm;codecs=opus' });
-            console.log(`🎤 Audio blob size: ${audioBlob.size} bytes`);
+            const recordedMimeType = this.mediaRecorder.mimeType || this.recordingFormat.mimeType;
+            const audioBlob = new Blob(this.audioChunks, { type: recordedMimeType });
+            console.log(`🎤 Audio blob size: ${audioBlob.size} bytes, type: ${recordedMimeType}`);
             
             if (audioBlob.size === 0) {
                 console.log('🎤 Empty audio blob, skipping');
                 return;
             }
             
-            // Convert to PCM16 format required by OpenAI
-            const arrayBuffer = await audioBlob.arrayBuffer();
-            const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
-            
-            console.log(`🎤 Audio buffer duration: ${audioBuffer.duration.toFixed(2)}s, sample rate: ${audioBuffer.sampleRate}Hz`);
-            
-            // Only proceed if we have sufficient audio
-            if (audioBuffer.duration < 0.5) {
-                console.log('🎤 Audio duration too short after decoding');
-                return;
-            }
-            
-            // Convert to PCM16
-            const pcm16Data = this.convertToPCM16(audioBuffer);
-            console.log(`🎤 PCM16 data size: ${pcm16Data.length} bytes`);
-            
-            // Send audio data in chunks to avoid overwhelming the buffer
-            await this.sendAudioInChunks(pcm16Data);
-            
-            // Commit the audio buffer
-            this.socket.emit('engineer:commitAudio');
-            
-            console.log('🎤 Audio sent to Racing Engineer');
+            // Upload audio file to server
+            await this.uploadAudioToServer(audioBlob);
             
         } catch (error) {
             console.error('🎤 Failed to process audio:', error);
         }
     }
     
-    async sendAudioInChunks(pcm16Data) {
-        const chunkSize = 8192; // 8KB chunks
-        const totalChunks = Math.ceil(pcm16Data.length / chunkSize);
-        
-        console.log(`🎤 Sending audio in ${totalChunks} chunks`);
-        
-        for (let i = 0; i < totalChunks; i++) {
-            const start = i * chunkSize;
-            const end = Math.min(start + chunkSize, pcm16Data.length);
-            const chunk = pcm16Data.slice(start, end);
-            
-            // Convert to base64 and send to server
-            const base64Audio = btoa(String.fromCharCode.apply(null, chunk));
-            this.socket.emit('engineer:audio', base64Audio);
-            
-            // Small delay between chunks to avoid overwhelming the server
-            if (i < totalChunks - 1) {
-                await new Promise(resolve => setTimeout(resolve, 10));
-            }
-        }
-    }
-    
-    convertToPCM16(audioBuffer) {
-        // Resample to 24kHz if needed (OpenAI requirement)
-        const targetSampleRate = 24000;
-        let processedBuffer = audioBuffer;
-        
-        if (audioBuffer.sampleRate !== targetSampleRate) {
-            processedBuffer = this.resampleAudioBuffer(audioBuffer, targetSampleRate);
-        }
-        
-        // Get the audio data (first channel)
-        const audioData = processedBuffer.getChannelData(0);
-        
-        // Convert float32 to int16 (PCM16) with proper scaling
-        const pcm16Data = new Int16Array(audioData.length);
-        
-        for (let i = 0; i < audioData.length; i++) {
-            // Clamp the value between -1 and 1, then convert to 16-bit int
-            let sample = Math.max(-1, Math.min(1, audioData[i]));
-            
-            // Apply slight gain reduction to prevent clipping
-            sample *= 0.95;
-            
-            // Convert to 16-bit integer
-            pcm16Data[i] = Math.round(sample < 0 ? sample * 0x8000 : sample * 0x7FFF);
-        }
-        
-        // Convert to Uint8Array (little-endian)
-        const uint8Array = new Uint8Array(pcm16Data.length * 2);
-        for (let i = 0; i < pcm16Data.length; i++) {
-            const value = pcm16Data[i];
-            uint8Array[i * 2] = value & 0xFF;
-            uint8Array[i * 2 + 1] = (value >> 8) & 0xFF;
-        }
-        
-        return uint8Array;
-    }
-    
-    resampleAudioBuffer(audioBuffer, targetSampleRate) {
-        if (audioBuffer.sampleRate === targetSampleRate) {
-            return audioBuffer;
-        }
-        
-        const ratio = targetSampleRate / audioBuffer.sampleRate;
-        const newLength = Math.round(audioBuffer.length * ratio);
-        const newBuffer = this.audioContext.createBuffer(1, newLength, targetSampleRate);
-        const oldData = audioBuffer.getChannelData(0);
-        const newData = newBuffer.getChannelData(0);
-        
-        // Simple linear interpolation resampling
-        for (let i = 0; i < newLength; i++) {
-            const oldIndex = i / ratio;
-            const index = Math.floor(oldIndex);
-            const fraction = oldIndex - index;
-            
-            if (index + 1 < oldData.length) {
-                newData[i] = oldData[index] * (1 - fraction) + oldData[index + 1] * fraction;
-            } else {
-                newData[i] = oldData[index] || 0;
-            }
-        }
-        
-        return newBuffer;
-    }
-    
-    async playEngineerAudio(audioData) {
+    async uploadAudioToServer(audioBlob) {
         try {
+            console.log('🎤 Uploading audio to server...');
+            console.log('🎤 Blob type:', audioBlob.type);
+            console.log('🎤 Blob size:', audioBlob.size);
+            
+            const formData = new FormData();
+            
+            // Determine file extension based on MIME type or recording format
+            let extension = '.webm'; // default
+            if (this.recordingFormat) {
+                extension = this.recordingFormat.extension;
+            } else if (audioBlob.type.includes('mp4')) {
+                extension = '.m4a';
+            } else if (audioBlob.type.includes('mpeg')) {
+                extension = '.mp3';
+            }
+            
+            const filename = `recording${extension}`;
+            console.log('🎤 Using filename:', filename);
+            
+            // Add blob with proper filename
+            formData.append('audio', audioBlob, filename);
+            
+            // Add format hint for server
+            formData.append('mimeType', audioBlob.type);
+            
+            const response = await fetch('/api/engineer/audio', {
+                method: 'POST',
+                body: formData
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                console.log('✅ Audio uploaded successfully:', result.message);
+            } else {
+                const error = await response.json();
+                console.error('❌ Server error:', error);
+                throw new Error(error.error || 'Upload failed');
+            }
+            
+        } catch (error) {
+            console.error('❌ Audio upload failed:', error);
+            this.updateEngineerStatus('error', 'Upload failed');
+        }
+    }
+    
+    async playEngineerAudio(audioBase64) {
+        try {
+            console.log('🔊 Playing engineer audio response...');
+            
+            // Create audio context if not available
             if (!this.audioContext) {
-                console.error('🔊 Audio context not available');
-                return;
+                this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
             }
             
             // Decode base64 audio data
-            const binaryString = atob(audioData);
+            const binaryString = atob(audioBase64);
             const audioBytes = new Uint8Array(binaryString.length);
             
             for (let i = 0; i < binaryString.length; i++) {
                 audioBytes[i] = binaryString.charCodeAt(i);
             }
             
-            // Check if we have valid audio data
-            if (audioBytes.length < 2) {
-                console.log('🔊 Insufficient audio data');
-                return;
+            // Try to decode and play the audio
+            try {
+                const audioBuffer = await this.audioContext.decodeAudioData(audioBytes.buffer);
+                
+                const source = this.audioContext.createBufferSource();
+                source.buffer = audioBuffer;
+                source.connect(this.audioContext.destination);
+                
+                source.onended = () => {
+                    console.log('🔊 Engineer audio playback completed');
+                };
+                
+                source.start();
+            } catch (decodeError) {
+                console.log('🔊 Web Audio API decode failed, trying HTML5 audio fallback');
+                
+                // Fallback: try to play using HTML5 audio element
+                const audioBlob = new Blob([audioBytes], { type: 'audio/wav' });
+                const audioUrl = URL.createObjectURL(audioBlob);
+                const audio = new Audio(audioUrl);
+                
+                audio.onended = () => {
+                    URL.revokeObjectURL(audioUrl);
+                    console.log('🔊 Engineer audio playback completed (fallback)');
+                };
+                
+                audio.onerror = (e) => {
+                    console.error('🔊 HTML5 audio playback error:', e);
+                    URL.revokeObjectURL(audioUrl);
+                };
+                
+                await audio.play();
             }
-            
-            // Convert PCM16 data to audio buffer
-            const audioBuffer = await this.pcm16ToAudioBuffer(audioBytes);
-            
-            // Create gain node for volume control
-            const gainNode = this.audioContext.createGain();
-            gainNode.gain.value = 0.8; // Reduce volume slightly
-            
-            // Play the audio
-            const source = this.audioContext.createBufferSource();
-            source.buffer = audioBuffer;
-            source.connect(gainNode);
-            gainNode.connect(this.audioContext.destination);
-            
-            source.onended = () => {
-                console.log('🔊 Engineer audio playback completed');
-            };
-            
-            source.start();
             
         } catch (error) {
             console.error('🔊 Failed to play engineer audio:', error);
         }
-    }
-    
-    async pcm16ToAudioBuffer(pcm16Data) {
-        // Convert PCM16 data back to float32 audio buffer
-        const samples = pcm16Data.length / 2;
-        
-        if (samples === 0) {
-            throw new Error('No audio samples to process');
-        }
-        
-        const audioBuffer = this.audioContext.createBuffer(1, samples, 24000);
-        const channelData = audioBuffer.getChannelData(0);
-        
-        for (let i = 0; i < samples; i++) {
-            // Read little-endian 16-bit signed integer
-            let value = pcm16Data[i * 2] | (pcm16Data[i * 2 + 1] << 8);
-            
-            // Convert from unsigned to signed 16-bit
-            if (value > 0x7FFF) {
-                value -= 0x10000;
-            }
-            
-            // Convert signed 16-bit to float32 (-1.0 to 1.0)
-            channelData[i] = value / 0x8000;
-        }
-        
-        return audioBuffer;
     }
 }
 

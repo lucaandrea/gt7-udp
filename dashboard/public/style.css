@@ -498,6 +498,11 @@ body {
     background: #ffaa00;
 }
 
+.engineer-status.processing .status-indicator {
+    background: #00aaff;
+    animation: pulse 1s infinite;
+}
+
 .engineer-status.error .status-indicator {
     background: #ff4444;
 }
