@@ -91,7 +91,7 @@ class SimpleRacingEngineer extends EventEmitter {
             
             const transcription = await this.openai.audio.transcriptions.create({
                 file: audioStream,
-                model: 'whisper-1',
+                model: 'gpt-4o-mini-transcribe',
                 response_format: 'text',
                 prompt: 'This is a conversation with a racing engineer about Gran Turismo 7 telemetry data. The driver may ask about fuel, tires, engine temperatures, lap times, or racing strategy.'
             });
@@ -163,7 +163,7 @@ class SimpleRacingEngineer extends EventEmitter {
             console.log('🔊 Synthesizing speech...');
             
             const audio = await this.openai.audio.speech.create({
-                model: 'tts-1',
+                model: 'gpt-4o-mini-tts',
                 voice: 'alloy',
                 input: text,
                 response_format: 'wav' // WAV for better compatibility
