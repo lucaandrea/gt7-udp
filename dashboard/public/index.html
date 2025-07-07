@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GT7 Racing Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="dashboard">
+        <!-- Header -->
+        <header class="dashboard-header">
+            <h1>GT7 Racing Dashboard</h1>
+            <div class="connection-status" id="connectionStatus">
+                <span class="status-indicator"></span>
+                <span class="status-text">Connecting...</span>
+            </div>
+        </header>
+
+        <!-- Main telemetry display -->
+        <main class="dashboard-main">
+            <!-- Speed and RPM gauges -->
+            <section class="gauges-section">
+                <div class="gauge-container">
+                    <div class="gauge speed-gauge">
+                        <canvas id="speedGauge" width="200" height="200"></canvas>
+                        <div class="gauge-value">
+                            <span id="speedValue">0</span>
+                            <span class="gauge-unit">MPH</span>
+                        </div>
+                    </div>
+                    <div class="gauge rpm-gauge">
+                        <canvas id="rpmGauge" width="200" height="200"></canvas>
+                        <div class="gauge-value">
+                            <span id="rpmValue">0</span>
+                            <span class="gauge-unit">RPM</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Gear and car status -->
+            <section class="car-info-section">
+                <div class="gear-display">
+                    <div class="current-gear">
+                        <span class="gear-label">GEAR</span>
+                        <span class="gear-value" id="currentGear">N</span>
+                    </div>
+                    <div class="suggested-gear">
+                        <span class="gear-label">SUGGESTED</span>
+                        <span class="gear-value" id="suggestedGear">-</span>
+                    </div>
+                </div>
+                
+                <div class="car-status">
+                    <div class="status-row">
+                        <div class="status-item">
+                            <span class="status-label">Fuel</span>
+                            <div class="fuel-bar">
+                                <div class="fuel-fill" id="fuelFill"></div>
+                            </div>
+                            <span class="status-value" id="fuelValue">0L</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">Boost</span>
+                            <span class="status-value" id="boostValue">0.0</span>
+                        </div>
+                    </div>
+                    <div class="status-row">
+                        <div class="status-item">
+                            <span class="status-label">Oil Temp</span>
+                            <span class="status-value" id="oilTempValue">0°C</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">Water Temp</span>
+                            <span class="status-value" id="waterTempValue">0°C</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tire telemetry -->
+            <section class="tire-section">
+                <h3>Tire Telemetry</h3>
+                <div class="tire-grid">
+                    <div class="tire-data" data-tire="0">
+                        <div class="tire-label">Front Left</div>
+                        <div class="tire-temp" id="tireTemp0">0°C</div>
+                        <div class="tire-slip" id="tireSlip0">0%</div>
+                    </div>
+                    <div class="tire-data" data-tire="1">
+                        <div class="tire-label">Front Right</div>
+                        <div class="tire-temp" id="tireTemp1">0°C</div>
+                        <div class="tire-slip" id="tireSlip1">0%</div>
+                    </div>
+                    <div class="tire-data" data-tire="2">
+                        <div class="tire-label">Rear Left</div>
+                        <div class="tire-temp" id="tireTemp2">0°C</div>
+                        <div class="tire-slip" id="tireSlip2">0%</div>
+                    </div>
+                    <div class="tire-data" data-tire="3">
+                        <div class="tire-label">Rear Right</div>
+                        <div class="tire-temp" id="tireTemp3">0°C</div>
+                        <div class="tire-slip" id="tireSlip3">0%</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Lap information -->
+            <section class="lap-section">
+                <h3>Lap Information</h3>
+                <div class="lap-info">
+                    <div class="lap-item">
+                        <span class="lap-label">Current Lap</span>
+                        <span class="lap-value" id="currentLap">0</span>
+                    </div>
+                    <div class="lap-item">
+                        <span class="lap-label">Total Laps</span>
+                        <span class="lap-value" id="totalLaps">0</span>
+                    </div>
+                    <div class="lap-item">
+                        <span class="lap-label">Best Lap</span>
+                        <span class="lap-value" id="bestLap">--:--.---</span>
+                    </div>
+                    <div class="lap-item">
+                        <span class="lap-label">Last Lap</span>
+                        <span class="lap-value" id="lastLap">--:--.---</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Input controls -->
+            <section class="input-section">
+                <div class="input-bars">
+                    <div class="input-bar">
+                        <span class="input-label">Throttle</span>
+                        <div class="input-bar-container">
+                            <div class="input-bar-fill throttle-fill" id="throttleFill"></div>
+                        </div>
+                        <span class="input-value" id="throttleValue">0%</span>
+                    </div>
+                    <div class="input-bar">
+                        <span class="input-label">Brake</span>
+                        <div class="input-bar-container">
+                            <div class="input-bar-fill brake-fill" id="brakeFill"></div>
+                        </div>
+                        <span class="input-value" id="brakeValue">0%</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Flags and warnings -->
+            <section class="flags-section">
+                <h3>Status Flags</h3>
+                <div class="flags-grid">
+                    <div class="flag-item" id="flagTCS">
+                        <span class="flag-indicator"></span>
+                        <span class="flag-label">TCS</span>
+                    </div>
+                    <div class="flag-item" id="flagASM">
+                        <span class="flag-indicator"></span>
+                        <span class="flag-label">ASM</span>
+                    </div>
+                    <div class="flag-item" id="flagHandbrake">
+                        <span class="flag-indicator"></span>
+                        <span class="flag-label">Handbrake</span>
+                    </div>
+                    <div class="flag-item" id="flagLights">
+                        <span class="flag-indicator"></span>
+                        <span class="flag-label">Lights</span>
+                    </div>
+                    <div class="flag-item" id="flagRevLimiter">
+                        <span class="flag-indicator"></span>
+                        <span class="flag-label">Rev Limiter</span>
+                    </div>
+                    <div class="flag-item" id="flagPaused">
+                        <span class="flag-indicator"></span>
+                        <span class="flag-label">Paused</span>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
