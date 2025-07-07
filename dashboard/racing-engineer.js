@@ -86,7 +86,7 @@ class RacingEngineer extends EventEmitter {
                     threshold: 0.5,
                     prefix_padding_ms: 300,
                     silence_duration_ms: 500,
-                    create_response: true
+                    create_response: false
                 },
                 temperature: 0.8,
                 max_response_output_tokens: 1000
@@ -332,6 +332,10 @@ Driver question: ${userText}`;
             case 'conversation.item.input_audio_transcription.completed':
                 console.log('🏁 Driver transcription:', message.transcript);
                 this.emit('transcription', message.transcript);
+
+                // Send the transcribed text as a user message with telemetry
+                // context and trigger a response from the engineer
+                this.sendTextMessage(message.transcript);
                 break;
                 
             case 'input_audio_buffer.speech_started':

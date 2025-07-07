@@ -543,8 +543,6 @@ class GT7Dashboard {
             this.playbackContext = null;
         }
 
-        // Disconnect racing engineer session
-        this.socket.emit('engineer:disconnect');
     }
     
     resetTalkButton() {
