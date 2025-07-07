@@ -69,7 +69,7 @@ const UDP_PORT = 33740; // Change from 33742 to 33740
 ## Dashboard Features
 
 ### Main Display
-- **Speed Gauge**: Real-time speed in KM/H with color-coded warning zones
+- **Speed Gauge**: Real-time speed in MP/H with color-coded warning zones
 - **RPM Gauge**: Engine RPM with rev limiter warnings
 - **Gear Display**: Current gear and suggested gear
 - **Fuel Level**: Visual fuel bar with remaining fuel amount

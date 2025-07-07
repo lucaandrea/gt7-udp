@@ -336,6 +336,178 @@ body {
     color: #ffffff;
 }
 
+/* Racing Engineer Section */
+.engineer-section {
+    grid-column: 1 / -1;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 15px;
+    padding: 2rem;
+    border: 1px solid rgba(255, 107, 53, 0.3);
+    text-align: center;
+}
+
+.engineer-section h3 {
+    color: #ff6b35;
+    margin-bottom: 1.5rem;
+    text-align: center;
+}
+
+.engineer-controls {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+}
+
+.talk-button {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    outline: none;
+}
+
+.talk-button:hover {
+    transform: scale(1.05);
+}
+
+.talk-button:active {
+    transform: scale(0.95);
+}
+
+.talk-button-ring {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: linear-gradient(145deg, #2a2a2a, #1a1a1a);
+    box-shadow: 
+        0 8px 16px rgba(0, 0, 0, 0.3),
+        inset 0 2px 4px rgba(255, 255, 255, 0.1),
+        inset 0 -2px 4px rgba(0, 0, 0, 0.3);
+    border: 3px solid #333333;
+    transition: all 0.2s ease;
+}
+
+.talk-button:hover .talk-button-ring {
+    border-color: #ff6b35;
+    box-shadow: 
+        0 8px 16px rgba(0, 0, 0, 0.3),
+        inset 0 2px 4px rgba(255, 255, 255, 0.1),
+        inset 0 -2px 4px rgba(0, 0, 0, 0.3),
+        0 0 20px rgba(255, 107, 53, 0.3);
+}
+
+.talk-button.active .talk-button-ring {
+    background: linear-gradient(145deg, #ff6b35, #e55a2e);
+    border-color: #ff8855;
+    box-shadow: 
+        0 4px 8px rgba(0, 0, 0, 0.3),
+        inset 0 -2px 4px rgba(0, 0, 0, 0.3),
+        inset 0 2px 4px rgba(255, 255, 255, 0.2),
+        0 0 30px rgba(255, 107, 53, 0.6);
+    animation: pulse-talk 1s infinite;
+}
+
+@keyframes pulse-talk {
+    0%, 100% { 
+        box-shadow: 
+            0 4px 8px rgba(0, 0, 0, 0.3),
+            inset 0 -2px 4px rgba(0, 0, 0, 0.3),
+            inset 0 2px 4px rgba(255, 255, 255, 0.2),
+            0 0 30px rgba(255, 107, 53, 0.6);
+    }
+    50% { 
+        box-shadow: 
+            0 4px 8px rgba(0, 0, 0, 0.3),
+            inset 0 -2px 4px rgba(0, 0, 0, 0.3),
+            inset 0 2px 4px rgba(255, 255, 255, 0.2),
+            0 0 40px rgba(255, 107, 53, 0.8);
+    }
+}
+
+.talk-button-inner {
+    position: absolute;
+    inset: 15px;
+    border-radius: 50%;
+    background: linear-gradient(145deg, #1a1a1a, #0a0a0a);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 
+        inset 0 2px 4px rgba(0, 0, 0, 0.5),
+        inset 0 -2px 4px rgba(255, 255, 255, 0.1);
+}
+
+.mic-icon {
+    width: 40px;
+    height: 40px;
+    color: #cccccc;
+    transition: all 0.2s ease;
+}
+
+.talk-button:hover .mic-icon {
+    color: #ff6b35;
+}
+
+.talk-button.active .mic-icon {
+    color: #ffffff;
+    filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.5));
+}
+
+.talk-button-text {
+    position: absolute;
+    bottom: -35px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.9rem;
+    font-weight: bold;
+    color: #cccccc;
+    white-space: nowrap;
+    letter-spacing: 0.5px;
+    transition: color 0.2s ease;
+}
+
+.talk-button:hover .talk-button-text {
+    color: #ff6b35;
+}
+
+.talk-button.active .talk-button-text {
+    color: #ffffff;
+    text-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+}
+
+.engineer-status {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+.engineer-status .status-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #44ff44;
+    animation: pulse 2s infinite;
+}
+
+.engineer-status.connecting .status-indicator {
+    background: #ffaa00;
+}
+
+.engineer-status.error .status-indicator {
+    background: #ff4444;
+}
+
+.engineer-status .status-text {
+    font-size: 0.9rem;
+    color: #cccccc;
+    font-weight: bold;
+}
+
 /* Flags Section */
 .flags-section {
     grid-column: 1 / -1;

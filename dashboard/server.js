@@ -4,6 +4,8 @@ const socketIO = require('socket.io');
 const dgram = require('dgram');
 const path = require('path');
 const Salsa20 = require('./salsa20.js');
+const RacingEngineer = require('./racing-engineer.js');
+require('dotenv').config();
 
 const app = express();
 const server = http.createServer(app);
@@ -28,6 +30,9 @@ const heartbeatClient = dgram.createSocket('udp4');
 let packetCount = 0;
 let lastPacketTime = Date.now();
 let heartbeatInterval;
+
+// Racing Engineer
+let racingEngineer = null;
 
 console.log('=== GT7 Dashboard Server Starting ===');
 console.log(`PS5 IP: ${PS5_IP}`);
@@ -301,6 +306,11 @@ udpServer.on('message', (msg, rinfo) => {
         console.log('✅ Sending telemetry to connected clients');
         // Send telemetry data to all connected clients
         io.emit('telemetry', packet);
+        
+        // Update racing engineer with telemetry data
+        if (racingEngineer) {
+            racingEngineer.updateTelemetry(packet);
+        }
     } else {
         console.log('❌ Failed to parse packet - might be encrypted or invalid format');
     }
@@ -335,7 +345,87 @@ io.on('connection', (socket) => {
         ps5Port: PS5_PORT,
         localPort: LOCAL_UDP_PORT,
         packetCount: packetCount,
-        lastPacketTime: lastPacketTime
+        lastPacketTime: lastPacketTime,
+        engineerConnected: racingEngineer?.connected || false
+    });
+    
+    // Racing Engineer event handlers
+    socket.on('engineer:connect', async () => {
+        try {
+            if (!racingEngineer) {
+                racingEngineer = new RacingEngineer({
+                    apiKey: process.env.OPENAI_API_KEY
+                });
+                
+                // Set up engineer event listeners
+                racingEngineer.on('connected', () => {
+                    io.emit('engineer:connected');
+                    console.log('🏁 Racing Engineer connected to all clients');
+                });
+                
+                racingEngineer.on('disconnected', () => {
+                    io.emit('engineer:disconnected');
+                    console.log('🏁 Racing Engineer disconnected from all clients');
+                });
+                
+                racingEngineer.on('error', (error) => {
+                    io.emit('engineer:error', error.message);
+                    console.error('🏁 Racing Engineer error:', error);
+                });
+                
+                racingEngineer.on('audioData', (audioData) => {
+                    io.emit('engineer:audio', audioData);
+                });
+                
+                racingEngineer.on('audioComplete', () => {
+                    io.emit('engineer:audioComplete');
+                });
+                
+                racingEngineer.on('transcription', (transcript) => {
+                    io.emit('engineer:transcription', transcript);
+                });
+                
+                racingEngineer.on('speechStarted', () => {
+                    io.emit('engineer:speechStarted');
+                });
+                
+                racingEngineer.on('speechStopped', () => {
+                    io.emit('engineer:speechStopped');
+                });
+            }
+            
+            await racingEngineer.connect();
+        } catch (error) {
+            console.error('❌ Failed to initialize Racing Engineer:', error);
+            socket.emit('engineer:error', 'Failed to connect to Racing Engineer');
+        }
+    });
+    
+    socket.on('engineer:disconnect', () => {
+        if (racingEngineer) {
+            racingEngineer.disconnect();
+            racingEngineer = null;
+        }
+    });
+    
+    socket.on('engineer:audio', (audioData) => {
+        if (racingEngineer && racingEngineer.connected) {
+            // audioData should be a base64 encoded PCM16 audio buffer
+            const audioBuffer = Buffer.from(audioData, 'base64');
+            racingEngineer.sendAudioData(audioBuffer);
+        }
+    });
+    
+    socket.on('engineer:commitAudio', () => {
+        if (racingEngineer && racingEngineer.connected) {
+            racingEngineer.commitAudio();
+        }
+    });
+    
+    socket.on('engineer:text', (text) => {
+        if (racingEngineer && racingEngineer.connected) {
+            racingEngineer.sendTextMessage(text);
+        }
     });
     
     socket.on('disconnect', () => {

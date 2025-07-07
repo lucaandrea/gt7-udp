@@ -42,3 +42,6 @@ logs/
 
 # IDEs
 project.md
+resources/realtime.md
+resources/realtime_api_reference.md
+resources/voice_agents.md
