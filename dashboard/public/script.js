@@ -90,6 +90,9 @@ class GT7Dashboard {
             audioQueue: [],
             currentlyPlaying: false
         };
+
+        this.audioSource = null;
+        this.processor = null;
         
         // Set up racing engineer socket events
         this.socket.on('engineer:connected', () => {
@@ -474,28 +477,26 @@ class GT7Dashboard {
                 <rect x="6" y="6" width="12" height="12" fill="currentColor"/>
             `;
 
-            // Create MediaRecorder and stream audio chunks directly
-            this.mediaRecorder = new MediaRecorder(this.audioStream, {
-                mimeType: 'audio/webm;codecs=opus',
-                audioBitsPerSecond: 128000
-            });
+            // Create stream processor for raw PCM capture
+            this.audioSource = this.audioContext.createMediaStreamSource(this.audioStream);
+            const bufferSize = 1024;
+            this.processor = this.audioContext.createScriptProcessor(bufferSize, 1, 1);
+            this.audioSource.connect(this.processor);
+            this.processor.connect(this.audioContext.destination);
 
-            this.mediaRecorder.ondataavailable = async (event) => {
-                if (!this.isRecording || event.data.size === 0) return;
-
-                try {
-                    const arrayBuffer = await event.data.arrayBuffer();
-                    const buffer = await this.audioContext.decodeAudioData(arrayBuffer);
-                    const pcm16 = this.convertToPCM16(buffer);
-                    const base64Audio = btoa(String.fromCharCode.apply(null, pcm16));
-                    this.socket.emit('engineer:audio', base64Audio);
-                } catch (err) {
-                    console.error('🎤 Failed to process chunk:', err);
+            this.processor.onaudioprocess = (e) => {
+                if (!this.isRecording) return;
+                const input = e.inputBuffer.getChannelData(0);
+                const pcm16 = new Int16Array(input.length);
+                for (let i = 0; i < input.length; i++) {
+                    let s = Math.max(-1, Math.min(1, input[i]));
+                    s *= 0.95;
+                    pcm16[i] = Math.round(s < 0 ? s * 0x8000 : s * 0x7fff);
                 }
+                const uint8 = new Uint8Array(pcm16.buffer);
+                const base64Audio = btoa(String.fromCharCode.apply(null, uint8));
+                this.socket.emit('engineer:audio', base64Audio);
             };
-
-            // Start recording with short chunks for real-time streaming
-            this.mediaRecorder.start(200);
 
         } catch (error) {
             console.error('🎤 Failed to start recording:', error);
@@ -514,8 +515,17 @@ class GT7Dashboard {
 
         this.resetTalkButton();
 
-        if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
-            this.mediaRecorder.stop();
+        // Finalize audio to engineer
+        this.socket.emit('engineer:commitAudio');
+
+        if (this.processor) {
+            this.processor.disconnect();
+            this.processor = null;
+        }
+
+        if (this.audioSource) {
+            this.audioSource.disconnect();
+            this.audioSource = null;
         }
 
         if (this.audioStream) {
@@ -625,43 +635,46 @@ class GT7Dashboard {
                 console.error('🔊 Playback context not available');
                 return;
             }
-            
+
             // Decode base64 audio data
             const binaryString = atob(audioData);
             const audioBytes = new Uint8Array(binaryString.length);
-            
             for (let i = 0; i < binaryString.length; i++) {
                 audioBytes[i] = binaryString.charCodeAt(i);
             }
-            
-            // Check if we have valid audio data
+
             if (audioBytes.length < 2) {
                 console.log('🔊 Insufficient audio data');
                 return;
             }
-            
-            // Convert PCM16 data to audio buffer
-            const audioBuffer = await this.pcm16ToAudioBuffer(audioBytes);
-            
-            // Create gain node for volume control
-            const gainNode = this.playbackContext.createGain();
-            gainNode.gain.value = 0.8; // Reduce volume slightly
 
-            // Play the audio
-            const source = this.playbackContext.createBufferSource();
-            source.buffer = audioBuffer;
-            source.connect(gainNode);
-            gainNode.connect(this.playbackContext.destination);
-            
-            source.onended = () => {
-                console.log('🔊 Engineer audio playback completed');
-            };
-            
-            source.start();
-            
+            const audioBuffer = await this.pcm16ToAudioBuffer(audioBytes);
+            this.racingEngineer.audioQueue.push(audioBuffer);
+            this.playNextAudioSegment();
+
         } catch (error) {
             console.error('🔊 Failed to play engineer audio:', error);
         }
+    }
+
+    playNextAudioSegment() {
+        if (this.racingEngineer.currentlyPlaying) return;
+        if (this.racingEngineer.audioQueue.length === 0) return;
+
+        const buffer = this.racingEngineer.audioQueue.shift();
+        const gainNode = this.playbackContext.createGain();
+        gainNode.gain.value = 0.8;
+        const source = this.playbackContext.createBufferSource();
+        source.buffer = buffer;
+        source.connect(gainNode);
+        gainNode.connect(this.playbackContext.destination);
+
+        this.racingEngineer.currentlyPlaying = true;
+        source.onended = () => {
+            this.racingEngineer.currentlyPlaying = false;
+            this.playNextAudioSegment();
+        };
+        source.start();
     }
     
     async pcm16ToAudioBuffer(pcm16Data) {
