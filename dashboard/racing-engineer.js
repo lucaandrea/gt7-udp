@@ -76,8 +76,14 @@ class RacingEngineer extends EventEmitter {
                 modalities: ['text', 'audio'],
                 instructions: this.getEngineerInstructions(),
                 voice: this.voice,
-                input_audio_format: 'pcm16',
-                output_audio_format: 'pcm16',
+                input_audio_format: {
+                    type: 'pcm16',
+                    sample_rate: 16000
+                },
+                output_audio_format: {
+                    type: 'pcm16',
+                    sample_rate: 24000
+                },
                 input_audio_transcription: {
                     model: 'whisper-1'
                 },
