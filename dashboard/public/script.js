@@ -390,7 +390,7 @@ class GT7Dashboard {
         try {
             this.audioStream = await navigator.mediaDevices.getUserMedia({
                 audio: {
-                    sampleRate: 24000,
+                    sampleRate: 16000,
                     channelCount: 1,
                     echoCancellation: true,
                     noiseSuppression: true
@@ -399,7 +399,7 @@ class GT7Dashboard {
             
             // Create audio context for processing
             this.audioContext = new (window.AudioContext || window.webkitAudioContext)({
-                sampleRate: 24000
+                sampleRate: 16000
             });
             
             console.log('🎤 Microphone access granted');
@@ -610,8 +610,8 @@ class GT7Dashboard {
     }
     
     convertToPCM16(audioBuffer) {
-        // Resample to 24kHz if needed (OpenAI requirement)
-        const targetSampleRate = 24000;
+        // Resample to 16kHz for OpenAI realtime
+        const targetSampleRate = 16000;
         let processedBuffer = audioBuffer;
         
         if (audioBuffer.sampleRate !== targetSampleRate) {
@@ -726,7 +726,7 @@ class GT7Dashboard {
             throw new Error('No audio samples to process');
         }
         
-        const audioBuffer = this.audioContext.createBuffer(1, samples, 24000);
+        const audioBuffer = this.audioContext.createBuffer(1, samples, 16000);
         const channelData = audioBuffer.getChannelData(0);
         
         for (let i = 0; i < samples; i++) {
