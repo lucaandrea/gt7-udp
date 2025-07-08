@@ -1,0 +1,169 @@
+.engineer-section {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.engineer-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.talk-button {
+  position: relative;
+  width: 90px;
+  height: 90px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  outline: none;
+}
+
+.talk-button:hover {
+  transform: scale(1.1) rotate(2deg);
+}
+
+.talk-button:active {
+  transform: scale(0.95);
+}
+
+.talk-button-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #2a2a2a, #1a1a1a);
+  box-shadow: 
+    0 6px 12px rgba(0, 0, 0, 0.4),
+    inset 0 2px 4px rgba(255, 255, 255, 0.1),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.4);
+  border: 3px solid #333333;
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+.talk-button-ring::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.6s ease;
+}
+
+.talk-button:hover .talk-button-ring::before {
+  left: 100%;
+}
+
+.talk-button:hover .talk-button-ring {
+  border-color: #00ff41;
+  box-shadow: 
+    0 8px 16px rgba(0, 0, 0, 0.4),
+    inset 0 2px 4px rgba(255, 255, 255, 0.15),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.4),
+    0 0 25px rgba(0, 255, 65, 0.4);
+}
+
+.talk-button.active .talk-button-ring {
+  background: linear-gradient(145deg, #00ff41, #00cc35);
+  border-color: #00ff55;
+  animation: talkPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes talkPulse {
+  0%, 100% { 
+    box-shadow: 
+      0 6px 12px rgba(0, 0, 0, 0.4), 
+      0 0 25px rgba(0, 255, 65, 0.6),
+      inset 0 2px 4px rgba(255, 255, 255, 0.2);
+    transform: scale(1);
+  }
+  50% { 
+    box-shadow: 
+      0 8px 16px rgba(0, 0, 0, 0.5), 
+      0 0 40px rgba(0, 255, 65, 0.9),
+      inset 0 2px 4px rgba(255, 255, 255, 0.3);
+    transform: scale(1.05);
+  }
+}
+
+.talk-button-inner {
+  position: absolute;
+  inset: 12px;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #1a1a1a, #0a0a0a);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 
+    inset 0 2px 4px rgba(0, 0, 0, 0.6),
+    inset 0 -2px 4px rgba(255, 255, 255, 0.1);
+  transition: all 0.3s ease;
+}
+
+.talk-button.active .talk-button-inner {
+  background: linear-gradient(145deg, #0a0a0a, #1a1a1a);
+}
+
+.mic-icon {
+  width: 24px;
+  height: 24px;
+  color: #cccccc;
+  transition: all 0.2s ease;
+}
+
+.talk-button:hover .mic-icon {
+  color: #00ff41;
+}
+
+.talk-button.active .mic-icon {
+  color: #ffffff;
+}
+
+.talk-button-text {
+  position: absolute;
+  bottom: -25px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: 'Roboto Mono', monospace;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #888888;
+  white-space: nowrap;
+  letter-spacing: 0.5px;
+}
+
+.talk-button:hover .talk-button-text {
+  color: #00ff41;
+}
+
+.talk-button.active .talk-button-text {
+  color: #ffffff;
+}
+
+.engineer-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.engineer-status .status-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #00ff41;
+  animation: statusPulse 1.5s infinite;
+}
+
+.engineer-status.connecting .status-indicator {
+  background: #ffaa00;
+}
+
+.engineer-status .status-text {
+  font-family: 'Roboto Mono', monospace;
+  font-size: 0.875rem;
+  color: #cccccc;
+}

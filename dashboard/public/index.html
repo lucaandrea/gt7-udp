@@ -92,7 +92,7 @@
                 
                 <!-- Top Info Bar -->
                 <div class="top-info-bar">
-                    <div class="delta-time" id="deltaTime">+54.49</div>
+                    <div class="delta-time" id="deltaTime">--:--.---</div>
                     <div class="session-info">
                         <div class="lap-info">
                             <span class="current-lap" id="currentLap">59</span>
@@ -117,11 +117,15 @@
                         <span class="current-gear" id="currentGear">1</span>
                     </div>
                     <div class="gear-info">
-                        <div class="car-model">T787</div>
+                        <div class="car-model-container">
+                            <div class="car-model-label">CAR</div>
+                            <div class="car-model">T787</div>
+                        </div>
                         <div class="speed-display">
                             <span class="speed-value" id="speedValue">122</span>
                         </div>
                         <div class="suggested-gear-container">
+                            <div class="gear-label">MT</div>
                             <span class="suggested-gear" id="suggestedGear">OPT</span>
                         </div>
                     </div>
@@ -155,15 +159,15 @@
                 </div>
                 <div class="fuel-display">
                     <div class="fuel-amount">
-                        <span class="fuel-value" id="fuelValue">62</span>
+                        <span class="fuel-value" id="fuelValue">0</span>
                         <span class="fuel-unit">LITERS</span>
                     </div>
                     <div class="fuel-consumption">
-                        <span class="consumption-value">3.50</span>
+                        <span class="consumption-value" id="consumptionValue">0.00</span>
                         <span class="consumption-unit">L/min</span>
                     </div>
                     <div class="fuel-laps">
-                        <span class="laps-value">18</span>
+                        <span class="laps-value" id="lapsValue">0</span>
                         <span class="laps-unit">LAPS</span>
                     </div>
                 </div>
@@ -219,7 +223,7 @@
                     </div>
                     <div class="status-indicator active" id="flagMAP">
                         <span class="indicator-value">1</span>
-                        <span class="indicator-label">MAP</span>
+                        <span class="indicator-label">ENGINE MAP</span>
                     </div>
                 </div>
                 

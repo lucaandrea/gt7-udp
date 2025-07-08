@@ -11,7 +11,8 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIO(server);
 
-// Serve static files
+// Serve static files from dist directory (React build) or public directory
+app.use(express.static(path.join(__dirname, 'dist')));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Configuration - Change these as needed
@@ -217,6 +218,12 @@ function parseGT7Packet(buffer) {
             carCode: readInt32()
         };
 
+        // Read current position from offset - this needs to be after the initial packet structure
+        if (buffer.length >= 256) {
+            offset = 248; // Position field location in GT7 packet
+            packet.currentPosition = readInt16();
+        }
+
         // Add PacketB fields if packet is large enough
         if (buffer.length >= PACKET_B_SIZE) {
             packet.wheelRotation = readFloat();
@@ -416,7 +423,7 @@ io.on('connection', (socket) => {
         }
     });
     
-    socket.on('engineer:commitAudio', () => {
+    socket.on('engineer:commit-audio', () => {
         if (racingEngineer && racingEngineer.connected) {
             racingEngineer.commitAudio();
         }

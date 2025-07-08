@@ -151,6 +151,25 @@ body {
     100% { opacity: 0.3; }
 }
 
+@keyframes pausedPulse {
+    0% { 
+        background: rgba(255, 255, 255, 0.1); 
+        box-shadow: 0 0 5px rgba(255, 255, 255, 0.3);
+    }
+    50% { 
+        background: rgba(0, 150, 255, 0.3); 
+        box-shadow: 0 0 15px rgba(0, 150, 255, 0.6);
+    }
+    100% { 
+        background: rgba(255, 255, 255, 0.1); 
+        box-shadow: 0 0 5px rgba(255, 255, 255, 0.3);
+    }
+}
+
+.led.paused {
+    animation: pausedPulse 1.5s ease-in-out infinite;
+}
+
 /* ============ MAIN DASHBOARD ============ */
 .dashboard-main {
     flex: 1;
@@ -353,6 +372,21 @@ body {
     align-items: center;
 }
 
+.car-model-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.car-model-label {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
 .car-model {
     font-family: var(--font-mono);
     font-size: 1.125rem;
@@ -380,6 +414,17 @@ body {
 
 .suggested-gear-container {
     text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.gear-label {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
 }
 
 .suggested-gear {
@@ -557,6 +602,10 @@ body {
     text-align: center;
     min-width: 60px;
     transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
 }
 
 .status-indicator.active {
@@ -575,6 +624,7 @@ body {
     font-weight: 700;
     color: var(--text-primary);
     display: block;
+    line-height: 1;
 }
 
 .indicator-label {
@@ -582,6 +632,7 @@ body {
     font-size: 0.75rem;
     color: var(--text-muted);
     margin-top: 0.25rem;
+    text-align: center;
 }
 
 .additional-flags {
@@ -655,22 +706,22 @@ body {
     border: 1px solid var(--border-glass);
 }
 
-.brake-fill {
-    background: linear-gradient(0deg, var(--accent-danger), #ff8888);
+.brake-fill,
+.throttle-fill {
     border-radius: 20px;
     position: absolute;
     bottom: 0;
     width: 100%;
     transition: height 0.1s ease;
+    max-height: 100%;
+}
+
+.brake-fill {
+    background: linear-gradient(0deg, var(--accent-danger), #ff8888);
 }
 
 .throttle-fill {
     background: linear-gradient(0deg, var(--accent-primary), #88ff88);
-    border-radius: 20px;
-    position: absolute;
-    bottom: 0;
-    width: 100%;
-    transition: height 0.1s ease;
 }
 
 .input-value {

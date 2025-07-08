@@ -289,12 +289,17 @@ class GT7Dashboard {
         if (currentLap) currentLap.textContent = data.lapCount || 0;
         if (totalLaps) totalLaps.textContent = data.totalLaps || 0;
         
-        // Delta time (placeholder for now)
+        // Delta time (lap time delta)
         const deltaTime = document.getElementById('deltaTime');
-        if (deltaTime && data.deltaTime) {
-            const sign = data.deltaTime >= 0 ? '+' : '';
-            deltaTime.textContent = `${sign}${data.deltaTime.toFixed(2)}`;
-            deltaTime.className = data.deltaTime >= 0 ? 'delta-time positive' : 'delta-time negative';
+        if (deltaTime) {
+            if (data.deltaTime !== undefined && data.deltaTime !== null) {
+                const sign = data.deltaTime >= 0 ? '+' : '';
+                deltaTime.textContent = `${sign}${data.deltaTime.toFixed(2)}`;
+                deltaTime.className = data.deltaTime >= 0 ? 'delta-time positive' : 'delta-time negative';
+            } else {
+                deltaTime.textContent = '--:--.---';
+                deltaTime.className = 'delta-time';
+            }
         }
     }
     
@@ -364,21 +369,30 @@ class GT7Dashboard {
     updateFuelData(data) {
         // Fuel value
         const fuelValue = document.getElementById('fuelValue');
-        if (fuelValue) {
-            fuelValue.textContent = Math.round(data.fuelLevel || 0);
+        if (fuelValue && data.fuelLevel !== undefined) {
+            fuelValue.textContent = Math.round(data.fuelLevel);
         }
         
         // Fuel consumption (calculate from fuel level changes)
-        const consumptionValue = document.querySelector('.consumption-value');
-        if (consumptionValue && data.fuelConsumptionRate) {
-            consumptionValue.textContent = data.fuelConsumptionRate.toFixed(2);
+        const consumptionValue = document.getElementById('consumptionValue');
+        if (consumptionValue) {
+            if (data.fuelConsumptionRate !== undefined) {
+                consumptionValue.textContent = data.fuelConsumptionRate.toFixed(2);
+            } else {
+                // Calculate estimated consumption based on fuel usage
+                consumptionValue.textContent = '0.00';
+            }
         }
         
         // Estimated laps remaining
-        const lapsValue = document.querySelector('.laps-value');
-        if (lapsValue && data.fuelLevel && data.fuelConsumptionRate && data.fuelConsumptionRate > 0) {
-            const estimatedLaps = Math.floor(data.fuelLevel / data.fuelConsumptionRate);
-            lapsValue.textContent = estimatedLaps;
+        const lapsValue = document.getElementById('lapsValue');
+        if (lapsValue) {
+            if (data.fuelLevel && data.fuelConsumptionRate && data.fuelConsumptionRate > 0) {
+                const estimatedLaps = Math.floor(data.fuelLevel / data.fuelConsumptionRate);
+                lapsValue.textContent = estimatedLaps;
+            } else {
+                lapsValue.textContent = '0';
+            }
         }
         
         // Engine temperatures
@@ -389,8 +403,12 @@ class GT7Dashboard {
         if (oilTempValue) oilTempValue.textContent = `${data.oilTemp?.toFixed(0) || 0}°C`;
         if (waterTempValue) waterTempValue.textContent = `${data.waterTemp?.toFixed(0) || 0}°C`;
         if (boostValue) {
-            const boostBar = (data.boost - 1) * 100; // Convert from GT7 format
-            boostValue.textContent = `${boostBar.toFixed(1)} kPa`;
+            if (data.boost !== undefined) {
+                const boostBar = (data.boost - 1) * 100; // Convert from GT7 format
+                boostValue.textContent = `${boostBar.toFixed(1)} kPa`;
+            } else {
+                boostValue.textContent = '0.0 kPa';
+            }
         }
     }
     
@@ -487,6 +505,18 @@ class GT7Dashboard {
             } else {
                 document.body.classList.remove('rev-limiter-warning');
             }
+            
+            // Special handling for paused state - animate RGB LEDs
+            if (data.simulatorFlags.paused) {
+                this.ledElements.forEach(led => {
+                    led.classList.add('paused');
+                    led.classList.remove('active', 'green', 'yellow', 'orange', 'red');
+                });
+            } else {
+                this.ledElements.forEach(led => {
+                    led.classList.remove('paused');
+                });
+            }
         }
     }
     
@@ -541,23 +571,6 @@ class GT7Dashboard {
     
     async requestMicrophonePermission() {
         try {
-            // Clean up any existing audio stream and contexts first
-            if (this.audioStream) {
-                this.audioStream.getTracks().forEach(track => track.stop());
-                this.audioStream = null;
-            }
-            
-            if (this.audioContext) {
-                await this.audioContext.close();
-                this.audioContext = null;
-            }
-            
-            if (this.playbackContext) {
-                await this.playbackContext.close();
-                this.playbackContext = null;
-            }
-            
-            // Create new audio stream
             this.audioStream = await navigator.mediaDevices.getUserMedia({
                 audio: {
                     sampleRate: 16000,

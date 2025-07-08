@@ -1,0 +1,55 @@
+.input-controls {
+  display: flex;
+  gap: 2rem;
+}
+
+.input-bar-container {
+  display: flex;
+  gap: 1rem;
+}
+
+.input-bar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.input-label {
+  font-family: 'Roboto Mono', monospace;
+  font-size: 0.75rem;
+  color: #888888;
+}
+
+.input-bar-background {
+  width: 40px;
+  height: 100px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.input-bar-fill {
+  border-radius: 20px;
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  transition: height 0.1s ease;
+  max-height: 100%;
+}
+
+.brake-fill {
+  background: linear-gradient(0deg, #ff4444, #ff8888);
+}
+
+.throttle-fill {
+  background: linear-gradient(0deg, #00ff41, #88ff88);
+}
+
+.input-value {
+  font-family: 'Roboto Mono', monospace;
+  font-size: 0.875rem;
+  color: #ffffff;
+}
