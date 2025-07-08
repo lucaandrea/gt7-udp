@@ -218,11 +218,9 @@ function parseGT7Packet(buffer) {
             carCode: readInt32()
         };
 
-        // Read current position from offset - this needs to be after the initial packet structure
-        if (buffer.length >= 256) {
-            offset = 248; // Position field location in GT7 packet
-            packet.currentPosition = readInt16();
-        }
+        // GT7 telemetry doesn't provide current race position, only pre-race starting position
+        // Use the raceStartPosition field that's already parsed correctly
+        packet.currentPosition = packet.raceStartPosition;
 
         // Add PacketB fields if packet is large enough
         if (buffer.length >= PACKET_B_SIZE) {
