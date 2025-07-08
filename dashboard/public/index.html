@@ -5,67 +5,171 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GT7 Racing Dashboard</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div class="dashboard">
-        <!-- Header -->
+    <!-- F1-Style Racing Dashboard -->
+    <div class="racing-dashboard">
+        
+        <!-- Top Header with Connection Status -->
         <header class="dashboard-header">
-            <h1>GT7 Racing Dashboard</h1>
-            <div class="connection-status" id="connectionStatus">
-                <span class="status-indicator"></span>
-                <span class="status-text">Connecting...</span>
+            <div class="header-left">
+                <h1>GT7 RACING</h1>
+            </div>
+            <div class="header-right">
+                <div class="connection-status" id="connectionStatus">
+                    <span class="status-indicator"></span>
+                    <span class="status-text">Connecting...</span>
+                </div>
             </div>
         </header>
 
-        <!-- Main telemetry display -->
+        <!-- 16 LED RPM Gauge -->
+        <div class="rpm-led-strip">
+            <div class="led-container">
+                <div class="led" data-led="0"></div>
+                <div class="led" data-led="1"></div>
+                <div class="led" data-led="2"></div>
+                <div class="led" data-led="3"></div>
+                <div class="led" data-led="4"></div>
+                <div class="led" data-led="5"></div>
+                <div class="led" data-led="6"></div>
+                <div class="led" data-led="7"></div>
+                <div class="led" data-led="8"></div>
+                <div class="led" data-led="9"></div>
+                <div class="led" data-led="10"></div>
+                <div class="led" data-led="11"></div>
+                <div class="led" data-led="12"></div>
+                <div class="led" data-led="13"></div>
+                <div class="led" data-led="14"></div>
+                <div class="led" data-led="15"></div>
+            </div>
+        </div>
+
+        <!-- Main Dashboard Content -->
         <main class="dashboard-main">
-            <!-- Speed and RPM gauges -->
-            <section class="gauges-section">
-                <div class="gauge-container">
-                    <div class="gauge speed-gauge">
-                        <canvas id="speedGauge" width="200" height="200"></canvas>
-                        <div class="gauge-value">
-                            <span id="speedValue">0</span>
-                            <span class="gauge-unit">MPH</span>
-                        </div>
+
+            <!-- Left Section: Tire Data -->
+            <section class="tire-section">
+                <div class="section-header">
+                    <h3>TIRES</h3>
+                </div>
+                <div class="tire-grid">
+                    <div class="tire-data front-left" data-tire="0">
+                        <div class="tire-position">FL</div>
+                        <div class="tire-temp" id="tireTemp0">25.9</div>
+                        <div class="tire-slip" id="tireSlip0">69°</div>
+                        <div class="tire-pressure">30°</div>
                     </div>
-                    <div class="gauge rpm-gauge">
-                        <canvas id="rpmGauge" width="200" height="200"></canvas>
-                        <div class="gauge-value">
-                            <span id="rpmValue">0</span>
-                            <span class="gauge-unit">RPM</span>
-                        </div>
+                    <div class="tire-data front-right" data-tire="1">
+                        <div class="tire-position">FR</div>
+                        <div class="tire-temp" id="tireTemp1">26.8</div>
+                        <div class="tire-slip" id="tireSlip1">69°</div>
+                        <div class="tire-pressure">30°</div>
                     </div>
+                    <div class="tire-data rear-left" data-tire="2">
+                        <div class="tire-position">RL</div>
+                        <div class="tire-temp" id="tireTemp2">26.1</div>
+                        <div class="tire-slip" id="tireSlip2">75°</div>
+                        <div class="tire-pressure">29°</div>
+                    </div>
+                    <div class="tire-data rear-right" data-tire="3">
+                        <div class="tire-position">RR</div>
+                        <div class="tire-temp" id="tireTemp3">26.9</div>
+                        <div class="tire-slip" id="tireSlip3">75°</div>
+                        <div class="tire-pressure">29°</div>
+                    </div>
+                </div>
+                <div class="tire-compound">
+                    <span class="compound-label">DRY 1</span>
                 </div>
             </section>
 
-            <!-- Gear and car status -->
-            <section class="car-info-section">
-                <div class="gear-display">
-                    <div class="current-gear">
-                        <span class="gear-label">GEAR</span>
-                        <span class="gear-value" id="currentGear">N</span>
+            <!-- Center Section: Main Display -->
+            <section class="center-display">
+                
+                <!-- Top Info Bar -->
+                <div class="top-info-bar">
+                    <div class="delta-time" id="deltaTime">+54.49</div>
+                    <div class="session-info">
+                        <div class="lap-info">
+                            <span class="current-lap" id="currentLap">59</span>
+                            <span class="lap-separator">/</span>
+                            <span class="total-laps" id="totalLaps">12</span>
+                        </div>
+                        <div class="position-info">
+                            <span class="position-label">POS</span>
+                            <span class="position-value">1</span>
+                        </div>
+                        <div class="time-info">
+                            <span class="lap-label">LAP</span>
+                            <span class="time-value">1 14:00</span>
+                        </div>
                     </div>
-                    <div class="suggested-gear">
-                        <span class="gear-label">SUGGESTED</span>
-                        <span class="gear-value" id="suggestedGear">-</span>
+                    <div class="practice-mode">PRACTICE</div>
+                </div>
+
+                <!-- Main Gear Display -->
+                <div class="gear-section">
+                    <div class="gear-display">
+                        <span class="current-gear" id="currentGear">1</span>
+                    </div>
+                    <div class="gear-info">
+                        <div class="car-model">T787</div>
+                        <div class="speed-display">
+                            <span class="speed-value" id="speedValue">122</span>
+                        </div>
+                        <div class="suggested-gear-container">
+                            <span class="suggested-gear" id="suggestedGear">OPT</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Lap Times Section -->
+                <div class="lap-times">
+                    <div class="section-header">
+                        <h4>LAP TIMES</h4>
+                    </div>
+                    <div class="time-row current-time">
+                        <span class="time-label">ESTIMATED LAP (ALL TIME 01:47.552)</span>
+                        <span class="time-value" id="estimatedLap">02:42.042</span>
+                    </div>
+                    <div class="time-row last-time">
+                        <span class="time-label">LAST LAP</span>
+                        <span class="time-value" id="lastLap">00:00.000</span>
+                    </div>
+                    <div class="time-row best-time">
+                        <span class="time-label">BEST LAP</span>
+                        <span class="time-value" id="bestLap">00:00.000</span>
+                    </div>
+                </div>
+
+            </section>
+
+            <!-- Right Section: Fuel and Engine Data -->
+            <section class="fuel-section">
+                <div class="section-header">
+                    <h3>FUEL</h3>
+                </div>
+                <div class="fuel-display">
+                    <div class="fuel-amount">
+                        <span class="fuel-value" id="fuelValue">62</span>
+                        <span class="fuel-unit">LITERS</span>
+                    </div>
+                    <div class="fuel-consumption">
+                        <span class="consumption-value">3.50</span>
+                        <span class="consumption-unit">L/min</span>
+                    </div>
+                    <div class="fuel-laps">
+                        <span class="laps-value">18</span>
+                        <span class="laps-unit">LAPS</span>
                     </div>
                 </div>
                 
-                <div class="car-status">
-                    <div class="status-row">
-                        <div class="status-item">
-                            <span class="status-label">Fuel</span>
-                            <div class="fuel-bar">
-                                <div class="fuel-fill" id="fuelFill"></div>
-                            </div>
-                            <span class="status-value" id="fuelValue">0L</span>
-                        </div>
-                        <div class="status-item">
-                            <span class="status-label">Boost</span>
-                            <span class="status-value" id="boostValue">0.0</span>
-                        </div>
-                    </div>
+                <!-- Engine Status -->
+                <div class="engine-status">
                     <div class="status-row">
                         <div class="status-item">
                             <span class="status-label">Oil Temp</span>
@@ -76,116 +180,51 @@
                             <span class="status-value" id="waterTempValue">0°C</span>
                         </div>
                     </div>
-                </div>
-            </section>
-
-            <!-- Tire telemetry -->
-            <section class="tire-section">
-                <h3>Tire Telemetry</h3>
-                <div class="tire-grid">
-                    <div class="tire-data" data-tire="0">
-                        <div class="tire-label">Front Left</div>
-                        <div class="tire-temp" id="tireTemp0">0°C</div>
-                        <div class="tire-slip" id="tireSlip0">0%</div>
-                    </div>
-                    <div class="tire-data" data-tire="1">
-                        <div class="tire-label">Front Right</div>
-                        <div class="tire-temp" id="tireTemp1">0°C</div>
-                        <div class="tire-slip" id="tireSlip1">0%</div>
-                    </div>
-                    <div class="tire-data" data-tire="2">
-                        <div class="tire-label">Rear Left</div>
-                        <div class="tire-temp" id="tireTemp2">0°C</div>
-                        <div class="tire-slip" id="tireSlip2">0%</div>
-                    </div>
-                    <div class="tire-data" data-tire="3">
-                        <div class="tire-label">Rear Right</div>
-                        <div class="tire-temp" id="tireTemp3">0°C</div>
-                        <div class="tire-slip" id="tireSlip3">0%</div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Lap information -->
-            <section class="lap-section">
-                <h3>Lap Information</h3>
-                <div class="lap-info">
-                    <div class="lap-item">
-                        <span class="lap-label">Current Lap</span>
-                        <span class="lap-value" id="currentLap">0</span>
-                    </div>
-                    <div class="lap-item">
-                        <span class="lap-label">Total Laps</span>
-                        <span class="lap-value" id="totalLaps">0</span>
-                    </div>
-                    <div class="lap-item">
-                        <span class="lap-label">Best Lap</span>
-                        <span class="lap-value" id="bestLap">--:--.---</span>
-                    </div>
-                    <div class="lap-item">
-                        <span class="lap-label">Last Lap</span>
-                        <span class="lap-value" id="lastLap">--:--.---</span>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Input controls -->
-            <section class="input-section">
-                <div class="input-bars">
-                    <div class="input-bar">
-                        <span class="input-label">Brake</span>
-                        <div class="input-bar-container">
-                            <div class="input-bar-fill brake-fill" id="brakeFill"></div>
+                    <div class="status-row">
+                        <div class="status-item">
+                            <span class="status-label">Boost</span>
+                            <span class="status-value" id="boostValue">0.0</span>
                         </div>
-                        <span class="input-value" id="brakeValue">0%</span>
-                    </div>
-                </div>
-                    <div class="input-bar">
-                        <span class="input-label">Throttle</span>
-                        <div class="input-bar-container">
-                            <div class="input-bar-fill throttle-fill" id="throttleFill"></div>
+                        <div class="status-item">
+                            <span class="status-label">RPM</span>
+                            <span class="status-value" id="rpmValue">0</span>
                         </div>
-                        <span class="input-value" id="throttleValue">0%</span>
-                    </div>
-
-            </section>
-
-            <!-- Racing Engineer Section -->
-            <section class="engineer-section">
-                <h3>Racing Engineer</h3>
-                <div class="engineer-controls">
-                    <button class="talk-button" id="talkButton">
-                        <div class="talk-button-ring">
-                            <div class="talk-button-inner">
-                                <svg class="mic-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M12 1a4 4 0 0 0-4 4v7a4 4 0 0 0 8 0V5a4 4 0 0 0-4-4z"/>
-                                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-                                    <line x1="12" y1="19" x2="12" y2="23"/>
-                                    <line x1="8" y1="23" x2="16" y2="23"/>
-                                </svg>
-                            </div>
-                        </div>
-                        <span class="talk-button-text">TALK</span>
-                    </button>
-                    <div class="engineer-status" id="engineerStatus">
-                        <span class="status-indicator"></span>
-                        <span class="status-text">Ready</span>
                     </div>
                 </div>
             </section>
 
-            <!-- Flags and warnings -->
-            <section class="flags-section">
-                <h3>Status Flags</h3>
-                <div class="flags-grid">
-                    <div class="flag-item" id="flagTCS">
-                        <span class="flag-indicator"></span>
-                        <span class="flag-label">TCS</span>
+        </main>
+
+        <!-- Bottom Section: Controls and Status -->
+        <footer class="dashboard-footer">
+            
+            <!-- Bottom Status Indicators -->
+            <div class="status-indicators">
+                <div class="indicator-group">
+                    <div class="status-indicator" id="flagTCS">
+                        <span class="indicator-value">3</span>
+                        <span class="indicator-label">TC</span>
                     </div>
-                    <div class="flag-item" id="flagASM">
-                        <span class="flag-indicator"></span>
-                        <span class="flag-label">ASM</span>
+                    <div class="status-indicator" id="flagTCCUT">
+                        <span class="indicator-value">0</span>
+                        <span class="indicator-label">TC CUT</span>
                     </div>
+                    <div class="status-indicator" id="flagASM">
+                        <span class="indicator-value">3</span>
+                        <span class="indicator-label">ABS</span>
+                    </div>
+                    <div class="status-indicator warning" id="flagBB">
+                        <span class="indicator-value">63.0</span>
+                        <span class="indicator-label">BB</span>
+                    </div>
+                    <div class="status-indicator active" id="flagMAP">
+                        <span class="indicator-value">1</span>
+                        <span class="indicator-label">MAP</span>
+                    </div>
+                </div>
+                
+                <!-- Additional Flags -->
+                <div class="additional-flags">
                     <div class="flag-item" id="flagHandbrake">
                         <span class="flag-indicator"></span>
                         <span class="flag-label">Handbrake</span>
@@ -203,8 +242,55 @@
                         <span class="flag-label">Paused</span>
                     </div>
                 </div>
-            </section>
-        </main>
+            </div>
+
+            <!-- Input Controls -->
+            <div class="input-controls">
+                <div class="input-bar-container">
+                    <div class="input-bar brake-bar">
+                        <span class="input-label">BRAKE</span>
+                        <div class="input-bar-fill brake-fill" id="brakeFill"></div>
+                        <span class="input-value" id="brakeValue">0%</span>
+                    </div>
+                    <div class="input-bar throttle-bar">
+                        <span class="input-label">THROTTLE</span>
+                        <div class="input-bar-fill throttle-fill" id="throttleFill"></div>
+                        <span class="input-value" id="throttleValue">0%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Racing Engineer Section -->
+            <div class="engineer-section">
+                <div class="engineer-controls">
+                    <button class="talk-button" id="talkButton">
+                        <div class="talk-button-ring">
+                            <div class="talk-button-inner">
+                                <svg class="mic-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M12 1a4 4 0 0 0-4 4v7a4 4 0 0 0 8 0V5a4 4 0 0 0-4-4z"/>
+                                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                                    <line x1="12" y1="19" x2="12" y2="23"/>
+                                    <line x1="8" y1="23" x2="16" y2="23"/>
+                                </svg>
+                            </div>
+                        </div>
+                        <span class="talk-button-text">ENGINEER</span>
+                    </button>
+                    <div class="engineer-status" id="engineerStatus">
+                        <span class="status-indicator"></span>
+                        <span class="status-text">Ready</span>
+                    </div>
+                </div>
+            </div>
+
+        </footer>
+
+        <!-- Hidden gauges for compatibility -->
+        <div style="display: none;">
+            <canvas id="speedGauge" width="200" height="200"></canvas>
+            <canvas id="rpmGauge" width="200" height="200"></canvas>
+        </div>
+
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
