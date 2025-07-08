@@ -161,6 +161,7 @@ class GT7Dashboard {
             this.racingEngineer.connected = false;
             this.racingEngineer.connecting = false;
             this.updateEngineerStatus('disconnected', 'Disconnected');
+            this.cleanupAudioResources();
             console.log('🏁 Racing Engineer disconnected');
         });
         
@@ -516,6 +517,7 @@ class GT7Dashboard {
     // Racing Engineer Methods (preserved from original)
     async connectEngineer() {
         if (this.racingEngineer.connected || this.racingEngineer.connecting) {
+            console.log('🏁 Racing Engineer already connected or connecting');
             return;
         }
         
@@ -523,6 +525,7 @@ class GT7Dashboard {
         this.updateEngineerStatus('connecting', 'Connecting...');
         
         try {
+            console.log('🏁 Requesting microphone permission...');
             // Request microphone permission
             await this.requestMicrophonePermission();
             
@@ -538,6 +541,23 @@ class GT7Dashboard {
     
     async requestMicrophonePermission() {
         try {
+            // Clean up any existing audio stream and contexts first
+            if (this.audioStream) {
+                this.audioStream.getTracks().forEach(track => track.stop());
+                this.audioStream = null;
+            }
+            
+            if (this.audioContext) {
+                await this.audioContext.close();
+                this.audioContext = null;
+            }
+            
+            if (this.playbackContext) {
+                await this.playbackContext.close();
+                this.playbackContext = null;
+            }
+            
+            // Create new audio stream
             this.audioStream = await navigator.mediaDevices.getUserMedia({
                 audio: {
                     sampleRate: 16000,
@@ -682,6 +702,46 @@ class GT7Dashboard {
 
         this.resetTalkButton();
         console.log('🎤 Audio streaming stopped');
+    }
+    
+    // Clean up all audio resources
+    cleanupAudioResources() {
+        console.log('🧹 Cleaning up audio resources...');
+        
+        // Stop any active recording
+        if (this.isRecording) {
+            this.stopTalking();
+        }
+        
+        // Clean up audio stream
+        if (this.audioStream) {
+            this.audioStream.getTracks().forEach(track => track.stop());
+            this.audioStream = null;
+        }
+        
+        // Clean up audio contexts
+        if (this.audioContext) {
+            this.audioContext.close();
+            this.audioContext = null;
+        }
+        
+        if (this.playbackContext) {
+            this.playbackContext.close();
+            this.playbackContext = null;
+        }
+        
+        // Clean up audio processing
+        if (this.processor) {
+            this.processor.disconnect();
+            this.processor = null;
+        }
+        
+        if (this.audioSource) {
+            this.audioSource.disconnect();
+            this.audioSource = null;
+        }
+        
+        console.log('🧹 Audio resources cleaned up');
     }
     
     resetTalkButton() {
