@@ -6,9 +6,31 @@ import { MainDisplay } from './MainDisplay';
 import { InputBars } from './InputBars';
 import { StatusIndicators } from './StatusIndicators';
 import { RacingEngineer } from './RacingEngineer';
+import { SettingsModal } from './SettingsModal';
 import './Dashboard.css';
 
-export const Dashboard: React.FC = () => {
+interface UserSettings {
+  ipAddress: string;
+  userName: string;
+}
+
+interface DashboardProps {
+  userSettings: UserSettings;
+  onSettingsClick: () => void;
+  showSettings: boolean;
+  onSettingsUpdate: (settings: UserSettings) => void;
+  onBackToStart: () => void;
+  onCloseSettings: () => void;
+}
+
+export const Dashboard: React.FC<DashboardProps> = ({
+  userSettings,
+  onSettingsClick,
+  showSettings,
+  onSettingsUpdate,
+  onBackToStart,
+  onCloseSettings
+}) => {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [connected, setConnected] = useState(false);
   const [telemetryData, setTelemetryData] = useState<TelemetryData>({
@@ -31,6 +53,9 @@ export const Dashboard: React.FC = () => {
     newSocket.on('connect', () => {
       setConnected(true);
       console.log('🌐 Connected to GT7 Dashboard server');
+      
+      // Send initial settings to server
+      newSocket.emit('settings:initialize', userSettings);
     });
 
     newSocket.on('disconnect', () => {
@@ -53,10 +78,27 @@ export const Dashboard: React.FC = () => {
       console.error('❌ Connection error:', error);
     });
 
+    // Settings event handlers
+    newSocket.on('settings:updated', (updatedSettings) => {
+      console.log('⚙️ Settings updated from server:', updatedSettings);
+    });
+
+    newSocket.on('settings:error', (errorMessage) => {
+      console.error('❌ Settings error:', errorMessage);
+    });
+
     return () => {
       newSocket.close();
     };
-  }, []);
+  }, [userSettings]);
+
+  // Handle settings updates
+  const handleSettingsUpdate = (newSettings: UserSettings) => {
+    if (socket) {
+      socket.emit('settings:update', newSettings);
+    }
+    onSettingsUpdate(newSettings);
+  };
 
   return (
     <div className={`racing-dashboard ${telemetryData.simulatorFlags?.revLimiterAlert ? 'rev-limiter-warning' : ''}`}>
@@ -70,6 +112,12 @@ export const Dashboard: React.FC = () => {
             <span className={`status-indicator ${connected ? 'connected' : ''}`}></span>
             <span className="status-text">{connected ? 'Connected' : 'Connecting...'}</span>
           </div>
+          <button className="settings-button" onClick={onSettingsClick} title="Settings">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M12 1v6m0 12v6m11-7h-6m-12 0H1M20.49 7.51L16 12l4.49 4.49M3.51 7.51L8 12l-4.49 4.49"/>
+            </svg>
+          </button>
         </div>
       </header>
 
@@ -186,6 +234,15 @@ export const Dashboard: React.FC = () => {
         {/* Racing Engineer */}
         <RacingEngineer socket={socket} />
       </footer>
+
+      {/* Settings Modal */}
+      <SettingsModal
+        isOpen={showSettings}
+        currentSettings={userSettings}
+        onSave={handleSettingsUpdate}
+        onClose={onCloseSettings}
+        onBackToStart={onBackToStart}
+      />
     </div>
   );
 };

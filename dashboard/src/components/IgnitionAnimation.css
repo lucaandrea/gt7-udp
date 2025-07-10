@@ -1,0 +1,497 @@
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Roboto+Mono:wght@400;500;700&display=swap');
+
+.ignition-animation {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: radial-gradient(ellipse at center, #1a1a1a 0%, #0a0a0a 100%);
+  color: #ffffff;
+  overflow: hidden;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Animated background grid */
+.ignition-grid {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.08;
+  background-image: 
+    linear-gradient(rgba(255, 170, 0, 0.5) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 170, 0, 0.5) 1px, transparent 1px);
+  background-size: 40px 40px;
+  animation: ignitionGridMove 15s linear infinite;
+  z-index: 1;
+}
+
+@keyframes ignitionGridMove {
+  0% { transform: translate(0, 0); }
+  100% { transform: translate(40px, 40px); }
+}
+
+/* Ambient glow */
+.ignition-glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 1000px;
+  height: 1000px;
+  background: radial-gradient(circle, rgba(255, 170, 0, 0.15) 0%, transparent 70%);
+  animation: ignitionPulse 3s ease-in-out infinite;
+  z-index: 2;
+}
+
+@keyframes ignitionPulse {
+  0%, 100% { opacity: 0.5; transform: translate(-50%, -50%) scale(1); }
+  50% { opacity: 0.8; transform: translate(-50%, -50%) scale(1.2); }
+}
+
+/* Main container */
+.ignition-container {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(25px);
+  border: 1px solid rgba(255, 170, 0, 0.2);
+  border-radius: 20px;
+  padding: 2rem;
+  width: 90%;
+  max-width: 1200px;
+  position: relative;
+  z-index: 10;
+  box-shadow: 
+    0 30px 60px rgba(0, 0, 0, 0.4),
+    0 0 60px rgba(255, 170, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* Header */
+.ignition-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(255, 170, 0, 0.2);
+}
+
+.ignition-title {
+  font-family: 'Orbitron', monospace;
+  font-size: 2.5rem;
+  font-weight: 900;
+  color: #ffaa00;
+  text-shadow: 
+    0 0 20px rgba(255, 170, 0, 0.5),
+    0 0 40px rgba(255, 170, 0, 0.3);
+  letter-spacing: 3px;
+  margin: 0;
+  animation: titleGlow 2s ease-in-out infinite;
+}
+
+@keyframes titleGlow {
+  0%, 100% { text-shadow: 0 0 20px rgba(255, 170, 0, 0.5), 0 0 40px rgba(255, 170, 0, 0.3); }
+  50% { text-shadow: 0 0 30px rgba(255, 170, 0, 0.8), 0 0 60px rgba(255, 170, 0, 0.5); }
+}
+
+.connection-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.ip-display,
+.driver-display {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-family: 'Roboto Mono', monospace;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 170, 0, 0.3);
+}
+
+.ip-label,
+.driver-label {
+  color: #cccccc;
+  font-size: 0.875rem;
+}
+
+.ip-value,
+.driver-value {
+  color: #ffaa00;
+  font-size: 1.125rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+/* Main display */
+.ignition-main {
+  display: grid;
+  grid-template-columns: 1fr 2fr 1fr;
+  gap: 2rem;
+  margin-bottom: 2rem;
+}
+
+/* Panel styles */
+.panel-title {
+  font-family: 'Orbitron', monospace;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #ffaa00;
+  margin: 0 0 1.5rem 0;
+  text-align: center;
+  letter-spacing: 1px;
+}
+
+/* Status Panel */
+.status-panel {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 170, 0, 0.2);
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+.status-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  position: relative;
+  padding: 0.75rem;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid transparent;
+  transition: all 0.3s ease;
+}
+
+.status-item.active {
+  background: rgba(255, 170, 0, 0.1);
+  border-color: rgba(255, 170, 0, 0.3);
+  box-shadow: 0 0 15px rgba(255, 170, 0, 0.2);
+}
+
+.status-item.complete {
+  background: rgba(0, 255, 65, 0.1);
+  border-color: rgba(0, 255, 65, 0.3);
+}
+
+.status-indicator {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #ffaa00;
+  border-top: 2px solid transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.checkmark {
+  color: #00ff41;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.pending-dot {
+  width: 8px;
+  height: 8px;
+  background: #666666;
+  border-radius: 50%;
+}
+
+.status-label {
+  font-family: 'Roboto Mono', monospace;
+  font-size: 0.875rem;
+  color: #cccccc;
+}
+
+.progress-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #ffaa00, #ff8800);
+  border-radius: 1px;
+  animation: progressMove 1.5s ease-in-out;
+}
+
+@keyframes progressMove {
+  0% { width: 0; }
+  100% { width: 100%; }
+}
+
+/* Gauges Panel */
+.gauges-panel {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 170, 0, 0.2);
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+.gauges-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+.gauge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.gauge-label {
+  font-family: 'Roboto Mono', monospace;
+  font-size: 0.75rem;
+  color: #cccccc;
+  letter-spacing: 1px;
+}
+
+.gauge-circle {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, #333333, #666666, #333333);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.gauge-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    #ffaa00 0%,
+    #ff8800 calc(var(--fill-percent, 0%) * 0.8),
+    transparent calc(var(--fill-percent, 0%)),
+    transparent 100%
+  );
+  transition: all 0.3s ease;
+}
+
+.gauge-fill.fuel {
+  background: conic-gradient(
+    from 0deg,
+    #00ff41 0%,
+    #00cc33 calc(var(--fill-percent, 0%) * 0.8),
+    transparent calc(var(--fill-percent, 0%)),
+    transparent 100%
+  );
+}
+
+.gauge-fill.oil {
+  background: conic-gradient(
+    from 0deg,
+    #4488ff 0%,
+    #2266dd calc(var(--fill-percent, 0%) * 0.8),
+    transparent calc(var(--fill-percent, 0%)),
+    transparent 100%
+  );
+}
+
+.gauge-fill.temp {
+  background: conic-gradient(
+    from 0deg,
+    #00ff41 0%,
+    #ffaa00 50%,
+    #ff4444 calc(var(--fill-percent, 0%) * 0.8),
+    transparent calc(var(--fill-percent, 0%)),
+    transparent 100%
+  );
+}
+
+.gauge-value {
+  font-family: 'Orbitron', monospace;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #ffffff;
+  position: relative;
+  z-index: 2;
+  text-shadow: 0 0 10px rgba(0, 0, 0, 0.8);
+}
+
+/* Warning Lights Panel */
+.lights-panel {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 170, 0, 0.2);
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+.warning-lights {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.warning-light {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid transparent;
+  transition: all 0.3s ease;
+}
+
+.warning-light.on {
+  background: rgba(255, 68, 68, 0.2);
+  border-color: rgba(255, 68, 68, 0.5);
+  box-shadow: 0 0 15px rgba(255, 68, 68, 0.3);
+  animation: warningBlink 1s ease-in-out infinite;
+}
+
+.warning-light.ready {
+  background: rgba(0, 255, 65, 0.2);
+  border-color: rgba(0, 255, 65, 0.5);
+  box-shadow: 0 0 15px rgba(0, 255, 65, 0.3);
+}
+
+.warning-light.off {
+  background: rgba(0, 0, 0, 0.1);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+@keyframes warningBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.light-icon {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+}
+
+.light-label {
+  font-family: 'Roboto Mono', monospace;
+  font-size: 0.75rem;
+  color: #cccccc;
+  letter-spacing: 1px;
+}
+
+/* Progress section */
+.ignition-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(255, 170, 0, 0.2);
+}
+
+.progress-label {
+  font-family: 'Roboto Mono', monospace;
+  font-size: 0.875rem;
+  color: #cccccc;
+  text-align: center;
+  letter-spacing: 1px;
+}
+
+.progress-track {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ffaa00, #ff8800, #ffaa00);
+  border-radius: 4px;
+  transition: width 0.5s ease;
+  box-shadow: 0 0 15px rgba(255, 170, 0, 0.5);
+  animation: progressGlow 2s ease-in-out infinite;
+}
+
+@keyframes progressGlow {
+  0%, 100% { box-shadow: 0 0 15px rgba(255, 170, 0, 0.5); }
+  50% { box-shadow: 0 0 25px rgba(255, 170, 0, 0.8); }
+}
+
+.progress-percent {
+  font-family: 'Orbitron', monospace;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #ffaa00;
+  text-align: center;
+  letter-spacing: 1px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Responsive design */
+@media (max-width: 1024px) {
+  .ignition-main {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  
+  .gauges-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  
+  .ignition-title {
+    font-size: 2rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .ignition-container {
+    padding: 1.5rem;
+    margin: 1rem;
+  }
+  
+  .ignition-header {
+    flex-direction: column;
+    gap: 1rem;
+    text-align: center;
+  }
+  
+  .ignition-title {
+    font-size: 1.75rem;
+  }
+  
+  .gauges-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  
+  .gauge-circle {
+    width: 60px;
+    height: 60px;
+  }
+} 

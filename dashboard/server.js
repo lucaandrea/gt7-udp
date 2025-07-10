@@ -15,8 +15,11 @@ const io = socketIO(server);
 app.use(express.static(path.join(__dirname, 'dist')));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Configuration - Change these as needed
-const PS5_IP = '10.0.1.74';  // PS5 IP address
+// Configuration - Dynamic settings
+let currentSettings = {
+    ps5IP: '10.0.1.74',  // Default PS5 IP address
+    userName: ''          // User's name for Racing Engineer
+};
 const PS5_PORT = 33739;      // PS5 receives heartbeat on this port
 const LOCAL_UDP_PORT = 33740; // We listen for GT7 data on this port
 const HEARTBEAT_INTERVAL = 1000; // Send heartbeat every 1000ms
@@ -36,7 +39,7 @@ let heartbeatInterval;
 let racingEngineer = null;
 
 console.log('=== GT7 Dashboard Server Starting ===');
-console.log(`PS5 IP: ${PS5_IP}`);
+console.log(`Default PS5 IP: ${currentSettings.ps5IP}`);
 console.log(`PS5 Port: ${PS5_PORT}`);
 console.log(`Local UDP Port: ${LOCAL_UDP_PORT}`);
 console.log('=====================================');
@@ -53,11 +56,11 @@ const keyBytes = Buffer.from(GT7_KEY, 'ascii').subarray(0, 32);
 function sendHeartbeat() {
     const heartbeatMsg = Buffer.from('A'); // Send 'A' for packet type A
     
-    heartbeatClient.send(heartbeatMsg, PS5_PORT, PS5_IP, (err) => {
+    heartbeatClient.send(heartbeatMsg, PS5_PORT, currentSettings.ps5IP, (err) => {
         if (err) {
             console.error('❌ Heartbeat send error:', err);
         } else {
-            console.log(`💓 Heartbeat sent to ${PS5_IP}:${PS5_PORT} at ${new Date().toISOString()}`);
+            console.log(`💓 Heartbeat sent to ${currentSettings.ps5IP}:${PS5_PORT} at ${new Date().toISOString()}`);
         }
     });
 }
@@ -346,12 +349,35 @@ io.on('connection', (socket) => {
     
     // Send connection status
     socket.emit('serverStatus', {
-        ps5IP: PS5_IP,
+        ps5IP: currentSettings.ps5IP,
         ps5Port: PS5_PORT,
         localPort: LOCAL_UDP_PORT,
         packetCount: packetCount,
         lastPacketTime: lastPacketTime,
-        engineerConnected: racingEngineer?.connected || false
+        engineerConnected: racingEngineer?.connected || false,
+        userName: currentSettings.userName
+    });
+    
+    // Handle initial settings from client (on first connection)
+    socket.on('settings:initialize', (initialSettings) => {
+        console.log('🚀 Initializing settings from client:', initialSettings);
+        
+        // Validate and update if provided
+        if (initialSettings.ipAddress && initialSettings.userName) {
+            const ipRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+            if (ipRegex.test(initialSettings.ipAddress) && initialSettings.userName.trim()) {
+                currentSettings.ps5IP = initialSettings.ipAddress;
+                currentSettings.userName = initialSettings.userName.trim();
+                
+                console.log(`🎯 Settings initialized: IP=${currentSettings.ps5IP}, Driver=${currentSettings.userName}`);
+                
+                // Broadcast updated settings to all clients
+                io.emit('settings:updated', {
+                    ipAddress: currentSettings.ps5IP,
+                    userName: currentSettings.userName
+                });
+            }
+        }
     });
     
     // Racing Engineer event handlers
@@ -359,7 +385,8 @@ io.on('connection', (socket) => {
         try {
             if (!racingEngineer) {
                 racingEngineer = new RacingEngineer({
-                    apiKey: process.env.OPENAI_API_KEY
+                    apiKey: process.env.OPENAI_API_KEY,
+                    userName: currentSettings.userName || 'Driver'
                 });
                 
                 // Set up engineer event listeners
@@ -431,6 +458,57 @@ io.on('connection', (socket) => {
         if (racingEngineer && racingEngineer.connected) {
             racingEngineer.sendTextMessage(text);
         }
+    });
+    
+    // Settings update handlers
+    socket.on('settings:update', (newSettings) => {
+        console.log('⚙️ Updating settings:', newSettings);
+        
+        // Validate IP address
+        const ipRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+        if (!ipRegex.test(newSettings.ipAddress)) {
+            socket.emit('settings:error', 'Invalid IP address format');
+            return;
+        }
+        
+        // Validate username
+        if (!newSettings.userName || !newSettings.userName.trim()) {
+            socket.emit('settings:error', 'Username is required');
+            return;
+        }
+        
+        // Update settings
+        const oldIP = currentSettings.ps5IP;
+        currentSettings.ps5IP = newSettings.ipAddress;
+        currentSettings.userName = newSettings.userName.trim();
+        
+        // Update Racing Engineer with new username if connected
+        if (racingEngineer && racingEngineer.connected) {
+            racingEngineer.updateUserName(currentSettings.userName);
+        }
+        
+        // Log the change
+        if (oldIP !== currentSettings.ps5IP) {
+            console.log(`🔄 PS5 IP changed from ${oldIP} to ${currentSettings.ps5IP}`);
+        }
+        console.log(`👤 Driver name set to: ${currentSettings.userName}`);
+        
+        // Confirm settings update to all clients
+        io.emit('settings:updated', {
+            ipAddress: currentSettings.ps5IP,
+            userName: currentSettings.userName
+        });
+        
+        // Send updated server status
+        io.emit('serverStatus', {
+            ps5IP: currentSettings.ps5IP,
+            ps5Port: PS5_PORT,
+            localPort: LOCAL_UDP_PORT,
+            packetCount: packetCount,
+            lastPacketTime: lastPacketTime,
+            engineerConnected: racingEngineer?.connected || false,
+            userName: currentSettings.userName
+        });
     });
     
     socket.on('disconnect', () => {
